@@ -60,6 +60,13 @@
 </head>
 <body id="page-body" class="bg-gray-50 text-black flex items-center justify-center min-h-screen">
 
+    <!-- Botão de Perfil (Fixo, Escondido por Padrão) -->
+    <button id="profile-btn" class="hidden fixed top-4 left-4 text-gray-500 hover:text-black transition duration-300 z-50">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+        </svg>
+    </button>
+
     <!-- SVG Definitions for Dice -->
     <svg width="0" height="0" style="position:absolute">
         <defs>
@@ -119,7 +126,7 @@
         <!-- #1: View de Autenticação -->
         <div id="auth-view">
             <!-- Abas de Login / Cadastro -->
-            <div class="flex mb-4 border-b border-gray-300">
+            <div id="auth-tabs-container" class="flex mb-4 border-b border-gray-300">
                 <button id="tab-login" class="flex-1 py-2 text-center font-medium text-black border-b-2 border-black">Login</button>
                 <button id="tab-signup" class="flex-1 py-2 text-center font-medium text-gray-500">Cadastrar</button>
             </div>
@@ -350,6 +357,29 @@
         </div>
     </div>
 
+    <!-- #5: Modal de Perfil do Usuário -->
+    <div id="profile-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden z-50 p-4">
+        <div class="bg-white rounded-lg shadow-xl p-6 w-full max-w-sm relative">
+            <!-- Botão de Fechar -->
+            <button id="close-profile-modal-btn" class="absolute top-0 right-0 mt-2 mr-2 text-gray-500 hover:text-black z-10">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </button>
+            <h2 class="text-2xl font-bold text-black text-center mb-6">Meu Perfil</h2>
+
+            <!-- Formulário de Troca de Senha -->
+            <form id="change-password-form">
+                <div class="mb-4">
+                    <label for="new-password" class="block text-sm font-medium text-gray-700 mb-2">Nova Senha</label>
+                    <input type="password" id="new-password" required class="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg text-black focus:outline-none focus:ring-2 focus:ring-black" placeholder="••••••••">
+                </div>
+                <button type="submit" class="w-full bg-black text-white font-bold py-3 px-4 rounded-lg transition-transform transform hover:scale-105 shadow-md">Salvar Nova Senha</button>
+            </form>
+            <p id="profile-message" class="text-center text-sm mt-4"></p>
+        </div>
+    </div>
+
     <!-- Notificação Toast -->
     <div id="toast-notification" class="fixed bottom-5 right-5 bg-black text-white py-2 px-4 rounded-lg shadow-lg hidden transition-opacity duration-300 z-[60]">
         <p id="toast-message"></p>
@@ -429,6 +459,12 @@
         const lobbyMessage = document.getElementById('lobby-message');
         const welcomeMessage = document.getElementById('welcome-message');
         const createRoomBtn = document.getElementById('create-room-btn');
+        // Referências do Modal de Perfil
+        const profileBtn = document.getElementById('profile-btn');
+        const profileModal = document.getElementById('profile-modal');
+        const closeProfileModalBtn = document.getElementById('close-profile-modal-btn');
+        const changePasswordForm = document.getElementById('change-password-form');
+        const profileMessage = document.getElementById('profile-message');
         const logoutBtn = document.getElementById('logout-btn');
         const leaveRoomBtn = document.getElementById('leave-room-btn');
         const roomCodeDisplay = document.getElementById('room-code-display');
@@ -480,8 +516,10 @@
         function showAuthMessage(message, isError = false) { authMessage.textContent = message; authMessage.className = `text-center text-sm mt-4 ${isError ? 'text-red-400' : 'text-green-400'}`; }
         function showLobbyMessage(message, isError = true) { lobbyMessage.textContent = message; lobbyMessage.className = `text-center text-sm mt-4 ${isError ? 'text-red-400' : 'text-green-400'}`; }
         function showView(viewId) {
-            // Oculta/mostra o título principal dependendo da view
+            // Oculta/mostra o título principal e o ícone de perfil dependendo da view
+            const isUserLoggedIn = viewId === 'lobby-view' || viewId === 'room-view';
             mainTitle.classList.toggle('hidden', viewId === 'room-view');
+            profileBtn.classList.toggle('hidden', !isUserLoggedIn);
 
             ['auth-view', 'lobby-view', 'room-view'].forEach(id => document.getElementById(id).classList.add('hidden'));
             document.getElementById(viewId).classList.remove('hidden');
@@ -893,7 +931,7 @@
             loginForm.classList.add('hidden');
             signupForm.classList.add('hidden');
             resetPasswordForm.classList.remove('hidden');
-            document.querySelector('.flex.mb-4.border-b').classList.add('hidden'); // Oculta as abas
+            document.getElementById('auth-tabs-container').classList.add('hidden'); // Oculta as abas
             authMessage.textContent = '';
         });
 
@@ -901,7 +939,7 @@
             e.preventDefault();
             resetPasswordForm.classList.add('hidden');
             loginForm.classList.remove('hidden');
-            document.querySelector('.flex.mb-4.border-b').classList.remove('hidden'); // Mostra as abas
+            document.getElementById('auth-tabs-container').classList.remove('hidden'); // Mostra as abas
             tabLogin.click(); // Volta para a aba de login
         });
 
@@ -1030,6 +1068,46 @@
             closeSettingsModal();
             leaveRoomBtn.click();
         });
+
+        // --- Lógica do Modal de Perfil ---
+        profileBtn.addEventListener('click', () => {
+            profileMessage.textContent = ''; // Limpa mensagens antigas
+            changePasswordForm.reset(); // Limpa o formulário
+            profileModal.classList.remove('hidden');
+        });
+
+        closeProfileModalBtn.addEventListener('click', () => {
+            profileModal.classList.add('hidden');
+        });
+
+        changePasswordForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            toggleLoading(true);
+            profileMessage.textContent = '';
+            const newPassword = document.getElementById('new-password').value;
+
+            try {
+                const { error } = await sb.auth.updateUser({ password: newPassword });
+                if (error) {
+                    profileMessage.textContent = error.message;
+                    profileMessage.className = 'text-center text-sm mt-4 text-red-400';
+                } else {
+                    profileMessage.textContent = 'Senha atualizada com sucesso!';
+                    profileMessage.className = 'text-center text-sm mt-4 text-green-400';
+                    changePasswordForm.reset();
+                    // Fecha o modal após um curto período para o usuário ver a mensagem
+                    setTimeout(() => {
+                        profileModal.classList.add('hidden');
+                    }, 2000);
+                }
+            } catch (err) {
+                profileMessage.textContent = 'Ocorreu um erro inesperado.';
+                profileMessage.className = 'text-center text-sm mt-4 text-red-400';
+            } finally {
+                toggleLoading(false);
+            }
+        });
+
 
         endGameBtn.addEventListener('click', async () => {
             if (!currentUser || !currentRoom || currentUser.id !== currentRoom.creator_id) return;
@@ -1513,7 +1591,7 @@
                     // Esconde o formulário de atualização e mostra o de login
                     updatePasswordForm.classList.add('hidden');
                     loginForm.classList.remove('hidden');
-                    document.querySelector('.flex.mb-4.border-b').classList.remove('hidden'); // Mostra as abas
+                    document.getElementById('auth-tabs-container').classList.remove('hidden'); // Mostra as abas
                     tabLogin.click(); // Garante que a aba de login esteja ativa
                 }
             } catch (err) {
@@ -1536,7 +1614,7 @@
                     signupForm.classList.add('hidden');
                     resetPasswordForm.classList.add('hidden');
                     updatePasswordForm.classList.remove('hidden');
-                    document.querySelector('.flex.mb-4.border-b').classList.add('hidden'); // Oculta as abas
+                    document.getElementById('auth-tabs-container').classList.add('hidden'); // Oculta as abas
                     authMessage.textContent = '';
                     return; // Interrompe a execução para evitar processamento adicional
                 }
@@ -1547,7 +1625,7 @@
                     // Isso evita que ele permaneça na tela se o usuário atualizar a página após o login.
                     if (!updatePasswordForm.classList.contains('hidden')) {
                         updatePasswordForm.classList.add('hidden');
-                        document.querySelector('.flex.mb-4.border-b').classList.remove('hidden');
+                        document.getElementById('auth-tabs-container').classList.remove('hidden');
                     }
                     await handleUserLoggedIn(session);
                 }

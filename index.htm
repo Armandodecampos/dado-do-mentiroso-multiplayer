@@ -135,6 +135,9 @@
                     <input type="password" id="login-password" required class="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg text-black focus:outline-none focus:ring-2 focus:ring-black" placeholder="••••••••">
                 </div>
                 <button type="submit" class="w-full bg-black text-white font-bold py-3 px-4 rounded-lg transition-transform transform hover:scale-105 shadow-md">Entrar</button>
+                <div class="text-center mt-4">
+                    <a href="#" id="forgot-password-link" class="text-sm text-gray-600 hover:text-black">Esqueci minha senha</a>
+                </div>
             </form>
 
             <!-- Formulário de Cadastro (escondido por padrão) -->
@@ -148,6 +151,28 @@
                     <input type="password" id="signup-password" required class="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg text-black focus:outline-none focus:ring-2 focus:ring-black" placeholder="Mínimo 6 caracteres">
                 </div>
                 <button type="submit" class="w-full bg-black text-white font-bold py-3 px-4 rounded-lg transition-transform transform hover:scale-105 shadow-md">Criar Conta</button>
+            </form>
+
+            <!-- Formulário de Recuperação de Senha (escondido por padrão) -->
+            <form id="reset-password-form" class="hidden">
+                <div class="mb-4">
+                    <label for="reset-email" class="block text-sm font-medium text-gray-700 mb-2">Email</label>
+                    <input type="email" id="reset-email" required class="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg text-black focus:outline-none focus:ring-2 focus:ring-black" placeholder="voce@email.com">
+                </div>
+                <button type="submit" class="w-full bg-black text-white font-bold py-3 px-4 rounded-lg transition-transform transform hover:scale-105 shadow-md">Enviar Link de Recuperação</button>
+                 <div class="text-center mt-4">
+                    <a href="#" id="back-to-login-link" class="text-sm text-gray-600 hover:text-black">Voltar para o Login</a>
+                </div>
+            </form>
+
+            <!-- Formulário de Atualização de Senha (escondido por padrão) -->
+            <form id="update-password-form" class="hidden">
+                <p class="text-center text-gray-700 mb-4">Defina sua nova senha.</p>
+                <div class="mb-6">
+                    <label for="update-password" class="block text-sm font-medium text-gray-700 mb-2">Nova Senha</label>
+                    <input type="password" id="update-password" required class="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg text-black focus:outline-none focus:ring-2 focus:ring-black" placeholder="••••••••">
+                </div>
+                <button type="submit" class="w-full bg-black text-white font-bold py-3 px-4 rounded-lg transition-transform transform hover:scale-105 shadow-md">Atualizar Senha</button>
             </form>
 
             <!-- Mensagens de Auth -->
@@ -395,6 +420,10 @@
         const tabSignup = document.getElementById('tab-signup');
         const loginForm = document.getElementById('login-form');
         const signupForm = document.getElementById('signup-form');
+        const resetPasswordForm = document.getElementById('reset-password-form');
+        const updatePasswordForm = document.getElementById('update-password-form');
+        const forgotPasswordLink = document.getElementById('forgot-password-link');
+        const backToLoginLink = document.getElementById('back-to-login-link');
         const joinRoomForm = document.getElementById('join-room-form');
         const authMessage = document.getElementById('auth-message');
         const lobbyMessage = document.getElementById('lobby-message');
@@ -859,6 +888,23 @@
             authMessage.textContent = '';
         });
 
+        forgotPasswordLink.addEventListener('click', (e) => {
+            e.preventDefault();
+            loginForm.classList.add('hidden');
+            signupForm.classList.add('hidden');
+            resetPasswordForm.classList.remove('hidden');
+            document.querySelector('.flex.mb-4.border-b').classList.add('hidden'); // Oculta as abas
+            authMessage.textContent = '';
+        });
+
+        backToLoginLink.addEventListener('click', (e) => {
+            e.preventDefault();
+            resetPasswordForm.classList.add('hidden');
+            loginForm.classList.remove('hidden');
+            document.querySelector('.flex.mb-4.border-b').classList.remove('hidden'); // Mostra as abas
+            tabLogin.click(); // Volta para a aba de login
+        });
+
         signupForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             toggleLoading(true);
@@ -880,6 +926,27 @@
                 const { error } = await sb.auth.signInWithPassword({ email: document.getElementById('login-email').value, password: document.getElementById('login-password').value });
                 if (error) showAuthMessage(error.message, true);
                 else { showAuthMessage(''); loginForm.reset(); }
+            } catch (err) {
+                showAuthMessage("Ocorreu um erro inesperado.", true);
+            } finally {
+                toggleLoading(false);
+            }
+        });
+
+        resetPasswordForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            toggleLoading(true);
+            const email = document.getElementById('reset-email').value;
+            try {
+                const { error } = await sb.auth.resetPasswordForEmail(email, {
+                    redirectTo: window.location.href, // Redireciona de volta para a mesma página
+                });
+                if (error) {
+                    showAuthMessage(error.message, true);
+                } else {
+                    showAuthMessage('Link de recuperação enviado! Verifique seu email.', false);
+                    resetPasswordForm.reset();
+                }
             } catch (err) {
                 showAuthMessage("Ocorreu um erro inesperado.", true);
             } finally {
@@ -1430,14 +1497,58 @@
             }
         }
 
+        // Implementação do formulário de atualização de senha
+        updatePasswordForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            toggleLoading(true);
+            const newPassword = document.getElementById('update-password').value;
+
+            try {
+                const { error } = await sb.auth.updateUser({ password: newPassword });
+
+                if (error) {
+                    showAuthMessage(error.message, true);
+                } else {
+                    showAuthMessage('Senha atualizada com sucesso! Você já pode fazer o login.', false);
+                    // Esconde o formulário de atualização e mostra o de login
+                    updatePasswordForm.classList.add('hidden');
+                    loginForm.classList.remove('hidden');
+                    document.querySelector('.flex.mb-4.border-b').classList.remove('hidden'); // Mostra as abas
+                    tabLogin.click(); // Garante que a aba de login esteja ativa
+                }
+            } catch (err) {
+                showAuthMessage("Ocorreu um erro inesperado ao atualizar a senha.", true);
+            } finally {
+                toggleLoading(false);
+            }
+        });
+
         // Único listener para o estado de autenticação. Ele lida com o login inicial (INITIAL_SESSION) e todas as mudanças.
         sb.auth.onAuthStateChange(async (event, session) => {
             // Este manipulador é executado em segundo plano e não deve acionar um
             // indicador de carregamento visível, pois pode travar a UI em atualizações de sessão.
             // Apenas os manipuladores de eventos iniciados pelo usuário (login, logout, etc.) devem mostrar o spinner.
             try {
+                // Evento especial para recuperação de senha
+                if (event === 'PASSWORD_RECOVERY') {
+                    showView('auth-view');
+                    loginForm.classList.add('hidden');
+                    signupForm.classList.add('hidden');
+                    resetPasswordForm.classList.add('hidden');
+                    updatePasswordForm.classList.remove('hidden');
+                    document.querySelector('.flex.mb-4.border-b').classList.add('hidden'); // Oculta as abas
+                    authMessage.textContent = '';
+                    return; // Interrompe a execução para evitar processamento adicional
+                }
+
                 // Se existe uma sessão, o usuário está logado.
                 if (session) {
+                    // Se o formulário de atualização de senha estiver visível, oculta-o.
+                    // Isso evita que ele permaneça na tela se o usuário atualizar a página após o login.
+                    if (!updatePasswordForm.classList.contains('hidden')) {
+                        updatePasswordForm.classList.add('hidden');
+                        document.querySelector('.flex.mb-4.border-b').classList.remove('hidden');
+                    }
                     await handleUserLoggedIn(session);
                 }
                 // Se não há sessão, o usuário está deslogado.

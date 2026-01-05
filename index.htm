@@ -1132,8 +1132,13 @@
                 showToast(`Erro ao finalizar o jogo: ${error.message}`);
             }
             
-            // Transmite um estado de jogo nulo para redefinir o jogo para todos.
-            await updateAndBroadcastGameState(null, false);
+            // Cria um estado final de jogo consistente com outras lógicas de fim de jogo
+            const finalGameState = {
+                ...gameState,
+                gameWinner: null, // Indica que o jogo foi terminado manualmente, sem vencedor
+                roundInfo: { reveal: false }, // Garante que nenhum overlay de resultado seja exibido
+            };
+            await updateAndBroadcastGameState(finalGameState, false);
         });
 
 
@@ -1180,7 +1185,9 @@
                 gameStarted = payload.gameStarted;
                 gameState = payload.gameState;
                 renderRoomUI();
-                renderGameUI();
+                if (payload.gameStarted) {
+                    renderGameUI();
+                }
             });
 
             // Ouvinte para mudanças de anfitrião

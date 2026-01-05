@@ -609,7 +609,9 @@
 
             // 2. Renderiza a UI localmente
             renderRoomUI();
-            renderGameUI();
+            if (newGameStarted) {
+                renderGameUI();
+            }
 
             // 3. Transmite o novo estado para os outros
             if (currentRoomChannel) {
@@ -1130,18 +1132,8 @@
                 showToast(`Erro ao finalizar o jogo: ${error.message}`);
             }
             
-            const endedGameState = {
-                ...gameState,
-                gameWinner: null, // Define como nulo para mostrar a tela de Fim de Jogo simples
-                bidHistory: [...gameState.bidHistory, { type: 'status', message: `${presences[currentUser.id]?.[0].email.split('@')[0]} finalizou o jogo.`}]
-            };
-
-            // Passa explicitamente `false` para gameStarted para acionar a lógica de renderização
-            await updateAndBroadcastGameState(endedGameState, false);
-
-            // Renderiza novamente a UI para refletir o estado de "jogo finalizado"
-            renderRoomUI();
-            renderGameUI();
+            // Transmite um estado de jogo nulo para redefinir o jogo para todos.
+            await updateAndBroadcastGameState(null, false);
         });
 
 

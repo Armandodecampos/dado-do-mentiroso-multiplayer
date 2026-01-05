@@ -653,6 +653,12 @@
         }
 
         function renderGameUI() {
+            // Garante que todos os overlays do jogo estejam escondidos por padrão.
+            // Eles serão reexibidos apenas se o estado atual do jogo o justificar.
+            document.getElementById('round-result-overlay').classList.add('hidden');
+            document.getElementById('game-over-overlay').classList.add('hidden');
+
+            // Se não houver jogo em andamento, não há mais nada a fazer.
             if (!gameState || !currentUser) return;
 
             const { players, currentPlayer, currentBid, round, roundInfo, gameWinner } = gameState;
@@ -1142,7 +1148,7 @@
         endGameBtn.addEventListener('click', () => {
             if (!currentUser || !currentRoom || currentUser.id !== currentRoom.creator_id) return;
 
-            closeSettingsModal();
+            settingsModal.classList.add('hidden'); // Fecha o modal
 
             // 1. Atualiza o estado local e a UI do anfitrião de forma síncrona para uma resposta imediata.
             gameStarted = false;

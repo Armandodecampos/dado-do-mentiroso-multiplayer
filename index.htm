@@ -854,9 +854,13 @@
             if (updatedGameState.turnOrder.length <= 1) {
                 updatedGameState.gameWinner = updatedGameState.turnOrder[0] || null;
             } else if (gameState.currentPlayer === leavingPlayerId) {
-                // Se era a vez do jogador que saiu, passa o turno para o próximo
-                const nextPlayerIndex = leavingPlayerIndex % updatedGameState.turnOrder.length;
-                updatedGameState.currentPlayer = updatedGameState.turnOrder[nextPlayerIndex];
+                // Se era a vez do jogador que saiu, passa o turno para o próximo jogador *ativo*
+                // A lógica anterior continha um bug que podia levar a um índice inválido.
+                // Esta nova abordagem garante que o índice esteja sempre dentro dos limites.
+                const newCurrentPlayerIndex = leavingPlayerIndex < updatedGameState.turnOrder.length
+                    ? leavingPlayerIndex
+                    : 0;
+                updatedGameState.currentPlayer = updatedGameState.turnOrder[newCurrentPlayerIndex];
                 console.log(`Era a vez de ${leavingPlayerId}. O turno agora é de ${updatedGameState.currentPlayer}.`);
             }
 
@@ -1132,13 +1136,19 @@
                 showToast(`Erro ao finalizar o jogo: ${error.message}`);
             }
             
-            // Cria um estado final de jogo consistente com outras lógicas de fim de jogo
-            const finalGameState = {
-                ...gameState,
-                gameWinner: null, // Indica que o jogo foi terminado manualmente, sem vencedor
-                roundInfo: { reveal: false }, // Garante que nenhum overlay de resultado seja exibido
-            };
-            await updateAndBroadcastGameState(finalGameState, false);
+            // Atualiza o estado local e renderiza a UI do anfitrião imediatamente
+            gameStarted = false;
+            gameState = null;
+            renderRoomUI();
+
+            // Transmite o estado de fim de jogo para os outros jogadores
+            if (currentRoomChannel) {
+                await currentRoomChannel.send({
+                    type: 'broadcast',
+                    event: 'game_state_update',
+                    payload: { gameState: null, gameStarted: false },
+                });
+            }
         });
 
 

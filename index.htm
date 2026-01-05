@@ -563,8 +563,13 @@
 
             // Controla a visibilidade dos elementos com base no estado do jogo
             const showLobby = !gameStarted;
-            lobbyWaitContent.classList.toggle('hidden', !showLobby);
-            gameView.classList.toggle('hidden', showLobby);
+            if (showLobby) {
+                lobbyWaitContent.classList.remove('hidden');
+                gameView.classList.add('hidden');
+            } else {
+                lobbyWaitContent.classList.add('hidden');
+                gameView.classList.remove('hidden');
+            }
 
             const gameControlsContainer = document.getElementById('game-controls');
             gameControlsContainer.innerHTML = '';
@@ -1131,8 +1136,12 @@
                 bidHistory: [...gameState.bidHistory, { type: 'status', message: `${presences[currentUser.id]?.[0].email.split('@')[0]} finalizou o jogo.`}]
             };
 
+            // Passa explicitamente `false` para gameStarted para acionar a lógica de renderização
             await updateAndBroadcastGameState(endedGameState, false);
-            showView('room-view');
+
+            // Renderiza novamente a UI para refletir o estado de "jogo finalizado"
+            renderRoomUI();
+            renderGameUI();
         });
 
 

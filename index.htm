@@ -854,13 +854,27 @@
             if (updatedGameState.turnOrder.length <= 1) {
                 updatedGameState.gameWinner = updatedGameState.turnOrder[0] || null;
             } else if (gameState.currentPlayer === leavingPlayerId) {
-                // Se era a vez do jogador que saiu, passa o turno para o próximo jogador *ativo*
-                // A lógica anterior continha um bug que podia levar a um índice inválido.
-                // Esta nova abordagem garante que o índice esteja sempre dentro dos limites.
-                const newCurrentPlayerIndex = leavingPlayerIndex < updatedGameState.turnOrder.length
-                    ? leavingPlayerIndex
-                    : 0;
-                updatedGameState.currentPlayer = updatedGameState.turnOrder[newCurrentPlayerIndex];
+                // Lógica robusta para passar o turno: encontra o próximo jogador na ordem original
+                // que ainda está no jogo.
+                let nextPlayerFound = false;
+                let originalIndex = gameState.turnOrder.indexOf(leavingPlayerId);
+
+                // Procura a partir da posição do jogador que saiu
+                for (let i = 1; i < gameState.turnOrder.length; i++) {
+                    const nextIndex = (originalIndex + i) % gameState.turnOrder.length;
+                    const nextPlayerId = gameState.turnOrder[nextIndex];
+
+                    if (updatedGameState.players[nextPlayerId]) {
+                        updatedGameState.currentPlayer = nextPlayerId;
+                        nextPlayerFound = true;
+                        break;
+                    }
+                }
+
+                // Fallback: se nenhum jogador for encontrado (caso raro), atribui ao primeiro da lista
+                if (!nextPlayerFound) {
+                    updatedGameState.currentPlayer = updatedGameState.turnOrder[0];
+                }
                 console.log(`Era a vez de ${leavingPlayerId}. O turno agora é de ${updatedGameState.currentPlayer}.`);
             }
 
@@ -1125,25 +1139,29 @@
         });
 
 
-        endGameBtn.addEventListener('click', async () => {
+        endGameBtn.addEventListener('click', () => {
             if (!currentUser || !currentRoom || currentUser.id !== currentRoom.creator_id) return;
+
             closeSettingsModal();
 
-            // O anfitrião atualiza o banco de dados para indicar que o jogo terminou
-            const { error } = await sb.from('rooms').update({ game_started: false }).eq('room_code', currentRoom.room_code);
-            if (error) {
-                // Informa o anfitrião se a atualização falhar, mas continua mesmo assim
-                showToast(`Erro ao finalizar o jogo: ${error.message}`);
-            }
-            
-            // Atualiza o estado local e renderiza a UI do anfitrião imediatamente
+            // 1. Atualiza o estado local e a UI do anfitrião de forma síncrona para uma resposta imediata.
             gameStarted = false;
             gameState = null;
             renderRoomUI();
 
-            // Transmite o estado de fim de jogo para os outros jogadores
+            // 2. Realiza as operações de rede em segundo plano, sem bloquear a UI.
+            // Atualiza o estado da sala no banco de dados.
+            sb.from('rooms').update({ game_started: false }).eq('room_code', currentRoom.room_code)
+                .then(({ error }) => {
+                    if (error) {
+                        console.error('Erro ao atualizar a sala para finalizar o jogo:', error.message);
+                        showToast(`Erro de servidor ao finalizar o jogo: ${error.message}`);
+                    }
+                });
+
+            // Transmite o estado de fim de jogo para os outros jogadores.
             if (currentRoomChannel) {
-                await currentRoomChannel.send({
+                currentRoomChannel.send({
                     type: 'broadcast',
                     event: 'game_state_update',
                     payload: { gameState: null, gameStarted: false },

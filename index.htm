@@ -602,7 +602,7 @@
          * @param {object} newGameState - O objeto de estado completo do jogo a ser transmitido.
          * @param {boolean} newGameStarted - O estado de "jogo iniciado".
          */
-        async function updateAndBroadcastGameState(newGameState, newGameStarted) {
+        async function updateAndBroadcastGameState(newGameState, newGameStarted, reason = null) {
             // 1. Atualiza o estado local primeiro
             gameState = newGameState;
             gameStarted = newGameStarted;
@@ -613,12 +613,12 @@
                 renderGameUI();
             }
 
-            // 3. Transmite o novo estado para os outros
+            // 3. Transmite o novo estado para os outros, incluindo o motivo da mudança.
             if (currentRoomChannel) {
                 await currentRoomChannel.send({
                     type: 'broadcast',
                     event: 'game_state_update',
-                    payload: { gameState: newGameState, gameStarted: newGameStarted },
+                    payload: { gameState: newGameState, gameStarted: newGameStarted, reason: reason },
                 });
             }
         }
@@ -842,44 +842,44 @@
 
         async function handleGameStateUpdateForLeavingPlayer(leavingPlayerId) {
             if (!gameState || !gameStarted || !gameState.players[leavingPlayerId]) {
-                console.log("O jogo não está em andamento ou o jogador que saiu não estava jogando. Nenhuma atualização de estado necessária.");
+                console.log("O jogo não está em andamento ou o jogador que saiu não estava jogando.");
                 return;
             }
 
-            console.log(`Removendo ${leavingPlayerId} do jogo.`);
-
-            const originalTurnOrder = [...gameState.turnOrder];
             const updatedGameState = JSON.parse(JSON.stringify(gameState));
+            const originalTurnOrder = [...updatedGameState.turnOrder];
+            const leavingEmail = presences[leavingPlayerId]?.[0].email.split('@')[0] || 'Um jogador';
 
             // Remove o jogador do estado
             delete updatedGameState.players[leavingPlayerId];
             updatedGameState.turnOrder = updatedGameState.turnOrder.filter(id => id !== leavingPlayerId);
 
-            // Verifica se o jogo terminou
-            if (updatedGameState.turnOrder.length <= 1) {
-                updatedGameState.gameWinner = updatedGameState.turnOrder[0] || null;
-            } else if (gameState.currentPlayer === leavingPlayerId) {
-                // Se era o turno do jogador que saiu, passa para o próximo na ordem original.
-                const originalIndex = originalTurnOrder.indexOf(leavingPlayerId);
-                // O próximo jogador é o que está no mesmo índice na nova lista (com wrap around)
-                updatedGameState.currentPlayer = updatedGameState.turnOrder[originalIndex % updatedGameState.turnOrder.length];
-                console.log(`Era a vez de ${leavingPlayerId}. O turno agora é de ${updatedGameState.currentPlayer}.`);
-            }
+            updatedGameState.bidHistory.push({ type: 'status', message: `${leavingEmail} saiu do jogo.` });
 
-            const leavingEmail = presences[leavingPlayerId]?.[0].email.split('@')[0] || 'Um jogador';
-            updatedGameState.bidHistory.push({ type: 'status', message: `${leavingEmail} saiu do jogo.`});
-
-            if (updatedGameState.gameWinner) {
-                 updatedGameState.bidHistory.push({ type: 'status', message: `O jogo terminou! ${presences[updatedGameState.gameWinner]?.[0].email.split('@')[0]} venceu.`});
-            } else {
-                // Apenas adiciona esta mensagem se o turno realmente mudou.
-                if (gameState.currentPlayer === leavingPlayerId) {
-                    updatedGameState.bidHistory.push({ type: 'status', message: `É a vez de ${presences[updatedGameState.currentPlayer]?.[0].email.split('@')[0]}.`});
+            // Cenário 1: Menos de 2 jogadores restantes, o jogo termina.
+            if (updatedGameState.turnOrder.length < 2) {
+                // O anfitrião atualiza o banco de dados para refletir o fim do jogo.
+                const { error } = await sb.from('rooms').update({ game_started: false }).eq('room_code', currentRoom.room_code);
+                if (error) {
+                    showToast(`Erro ao finalizar o jogo: ${error.message}`);
                 }
+                // Notifica a todos que o jogo terminou por falta de jogadores.
+                // Passa gameState como nulo para limpar a UI do jogo.
+                await updateAndBroadcastGameState(null, false, 'not_enough_players');
+                return;
             }
 
-            const gameEnded = !!updatedGameState.gameWinner;
-            await updateAndBroadcastGameState(updatedGameState, !gameEnded);
+            // Cenário 2: O jogo continua, ajusta o turno se necessário.
+            if (gameState.currentPlayer === leavingPlayerId) {
+                const originalIndex = originalTurnOrder.indexOf(leavingPlayerId);
+                updatedGameState.currentPlayer = updatedGameState.turnOrder[originalIndex % updatedGameState.turnOrder.length];
+
+                const nextPlayerEmail = presences[updatedGameState.currentPlayer]?.[0].email.split('@')[0] || 'Próximo jogador';
+                updatedGameState.bidHistory.push({ type: 'status', message: `É a vez de ${nextPlayerEmail}.` });
+            }
+
+            // Transmite o estado atualizado para continuar o jogo.
+            await updateAndBroadcastGameState(updatedGameState, true);
         }
 
         // --- 5. LÓGICA DE AUTENTICAÇÃO ---
@@ -1158,8 +1158,14 @@
             // Ouvinte para ATUALIZAÇÕES GERAIS DO JOGO
             currentRoomChannel.on('broadcast', { event: 'game_state_update' }, ({ payload }) => {
                 gameStarted = payload.gameStarted;
-                gameState = payload.gameState;
-                renderRoomUI();
+            gameState = payload.gameState; // Pode ser nulo se o jogo terminou
+
+            // Lógica adicional para tratar o motivo do fim do jogo
+            if (payload.reason === 'not_enough_players') {
+                showToast("O jogo terminou por falta de jogadores.");
+            }
+
+            renderRoomUI(); // Sempre renderiza a UI da sala (que mostrará o lobby se gameStarted for falso)
                 if (payload.gameStarted) {
                     renderGameUI();
                 }

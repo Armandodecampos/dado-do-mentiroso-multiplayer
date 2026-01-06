@@ -642,7 +642,7 @@
             playerIds.sort();
             const newGameState = createInitialGameState(playerIds, playerIds[0]);
             newGameState.turnOrder = playerIds;
-            newGameState.bidHistory.push({ type: 'status', message: `O jogo começou! É a vez de ${presences[newGameState.currentPlayer]?.[0].email}.`});
+            newGameState.bidHistory.push({ type: 'turn', message: `É a vez de ${presences[newGameState.currentPlayer]?.[0].email}.`});
 
             for (const playerId in newGameState.players) {
                 const player = newGameState.players[playerId];
@@ -727,49 +727,38 @@
 
                 // Ponto na linha do tempo
                 const dot = document.createElement('div');
+                // Estilo unificado para todos os pontos, o destaque virá do fundo da mensagem
                 dot.className = `absolute -left-[25px] top-4 w-4 h-4 rounded-full border-2 border-white ${item.type === 'bid' ? 'bg-blue-500' : 'bg-gray-400'}`;
                 msgWrapper.appendChild(dot);
                 
                 const msgDiv = document.createElement('div');
-                if (item.type === 'bid') {
+
+                // Define classes de estilo com base no tipo de mensagem
+                let baseClasses = "p-3 rounded-lg w-full ";
+                if (item.type === 'turn') {
+                    // Mensagem de turno destacada
+                    msgDiv.className = baseClasses + 'bg-yellow-100 border border-yellow-300 font-bold text-sm text-center shadow-sm';
+                    msgDiv.textContent = item.message;
+                } else if (item.type === 'bid') {
                     const bidderEmail = presences[item.playerId]?.[0].email.split('@')[0] || 'Jogador';
                     const isSelf = item.playerId === currentUser.id;
-
-                    // Exemplo: Maria apostou 1 dado face 3
-                    msgDiv.className = `p-3 rounded-lg w-full ${isSelf ? 'bg-blue-100 border border-blue-200' : 'bg-white shadow-sm border border-gray-200'}`;
-                    
+                    msgDiv.className = baseClasses + (isSelf ? 'bg-blue-100 border border-blue-200' : 'bg-white shadow-sm border border-gray-200');
                     const bidHtml = `<p class="text-sm font-semibold ${isSelf ? 'text-blue-800' : 'text-gray-800'}">${bidderEmail}:</p>
-                                    <div class="flex items-center gap-1 mt-1">
-                                        <span class="text-gray-600 text-sm">Apostou: </span>
-                                        <span class="font-bold text-lg">${item.quantity} x</span>
-                                        ${diceSVGTags[item.face]}
-                                    </div>`;
+                                     <div class="flex items-center gap-1 mt-1">
+                                         <span class="text-gray-600 text-sm">Apostou: </span>
+                                         <span class="font-bold text-lg">${item.quantity} x</span>
+                                         ${diceSVGTags[item.face]}
+                                     </div>`;
                     msgDiv.innerHTML = bidHtml;
                 } else if (item.type === 'status') {
-                    // Mensagem de status (início de jogo, fim de rodada)
-                    msgDiv.className = `text-xs text-gray-500 italic py-1`;
+                    // Mensagem de status normal
+                    msgDiv.className = 'text-xs text-gray-500 italic py-1';
                     msgDiv.textContent = item.message;
                 }
+
                 msgWrapper.appendChild(msgDiv);
                 historyMessages.appendChild(msgWrapper);
             });
-
-            // Adiciona a mensagem do turno atual (sempre a última mensagem)
-            const currentPlayerEmail = presences[currentPlayer]?.[0].email.split('@')[0] || 'Desconhecido';
-            const turnWrapper = document.createElement('div');
-            turnWrapper.className = 'relative pl-2';
-            
-            // Ponto pulsante para o turno atual
-            const turnDot = document.createElement('div');
-            turnDot.className = `absolute -left-[25px] top-3 w-4 h-4 rounded-full bg-yellow-500 animate-pulse border-2 border-white`;
-            turnWrapper.appendChild(turnDot);
-
-            const turnMsgDiv = document.createElement('div');
-            turnMsgDiv.className = `p-3 rounded-lg bg-yellow-100 border border-yellow-300 font-bold text-sm text-center shadow-sm`;
-            turnMsgDiv.textContent = `É a vez de ${currentPlayerEmail}`;
-            
-            turnWrapper.appendChild(turnMsgDiv);
-            historyMessages.appendChild(turnWrapper);
 
             // Rola para o final do histórico (o novo turno)
             // Timeout pequeno para garantir que o DOM atualizou
@@ -875,7 +864,7 @@
                 updatedGameState.currentPlayer = updatedGameState.turnOrder[originalIndex % updatedGameState.turnOrder.length];
 
                 const nextPlayerEmail = presences[updatedGameState.currentPlayer]?.[0].email.split('@')[0] || 'Próximo jogador';
-                updatedGameState.bidHistory.push({ type: 'status', message: `É a vez de ${nextPlayerEmail}.` });
+                updatedGameState.bidHistory.push({ type: 'turn', message: `É a vez de ${nextPlayerEmail}.` });
             }
 
             // Transmite o estado atualizado para continuar o jogo.
@@ -1355,7 +1344,7 @@
             // Adiciona o lance ao histórico
             const newHistory = [...gameState.bidHistory];
             newHistory.push({ type: 'bid', playerId: currentUser.id, quantity, face });
-            newHistory.push({ type: 'status', message: `É a vez de ${presences[nextPlayerId]?.[0].email.split('@')[0]}.`});
+            newHistory.push({ type: 'turn', message: `É a vez de ${presences[nextPlayerId]?.[0].email.split('@')[0]}.`});
 
 
             // Atualiza o estado do jogo com o novo lance
@@ -1533,7 +1522,7 @@
                 bidHistory: [], // Limpa o histórico de lances para a nova rodada
             };
             
-            nextRoundState.bidHistory.push({ type: 'status', message: `Rodada ${nextRoundState.round} começou! É a vez de ${presences[nextRoundState.currentPlayer]?.[0].email.split('@')[0]}.`});
+            nextRoundState.bidHistory.push({ type: 'turn', message: `Rodada ${nextRoundState.round} começou! É a vez de ${presences[nextRoundState.currentPlayer]?.[0].email.split('@')[0]}.`});
 
             // Rola novos dados para os jogadores restantes
             for (const playerId in nextRoundState.players) {

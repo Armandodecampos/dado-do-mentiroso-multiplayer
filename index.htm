@@ -848,9 +848,8 @@
 
             console.log(`Removendo ${leavingPlayerId} do jogo.`);
 
-            // Cria uma cópia profunda para evitar mutação direta
+            const originalTurnOrder = [...gameState.turnOrder];
             const updatedGameState = JSON.parse(JSON.stringify(gameState));
-            const leavingPlayerIndex = updatedGameState.turnOrder.indexOf(leavingPlayerId);
 
             // Remove o jogador do estado
             delete updatedGameState.players[leavingPlayerId];
@@ -860,85 +859,27 @@
             if (updatedGameState.turnOrder.length <= 1) {
                 updatedGameState.gameWinner = updatedGameState.turnOrder[0] || null;
             } else if (gameState.currentPlayer === leavingPlayerId) {
-                // Lógica robusta para passar o turno: encontra o próximo jogador na ordem original
-                // que ainda está no jogo.
-                let nextPlayerFound = false;
-                let originalIndex = gameState.turnOrder.indexOf(leavingPlayerId);
-
-                // Procura a partir da posição do jogador que saiu
-                for (let i = 1; i < gameState.turnOrder.length; i++) {
-                    const nextIndex = (originalIndex + i) % gameState.turnOrder.length;
-                    const nextPlayerId = gameState.turnOrder[nextIndex];
-
-                    if (updatedGameState.players[nextPlayerId]) {
-                        updatedGameState.currentPlayer = nextPlayerId;
-                        nextPlayerFound = true;
-                        break;
-                    }
-                }
-
-                // Fallback: se nenhum jogador for encontrado (caso raro), atribui ao primeiro da lista
-                if (!nextPlayerFound) {
-                    updatedGameState.currentPlayer = updatedGameState.turnOrder[0];
-                }
+                // Se era o turno do jogador que saiu, passa para o próximo na ordem original.
+                const originalIndex = originalTurnOrder.indexOf(leavingPlayerId);
+                // O próximo jogador é o que está no mesmo índice na nova lista (com wrap around)
+                updatedGameState.currentPlayer = updatedGameState.turnOrder[originalIndex % updatedGameState.turnOrder.length];
                 console.log(`Era a vez de ${leavingPlayerId}. O turno agora é de ${updatedGameState.currentPlayer}.`);
             }
 
-            // Adiciona mensagem ao histórico
             const leavingEmail = presences[leavingPlayerId]?.[0].email.split('@')[0] || 'Um jogador';
             updatedGameState.bidHistory.push({ type: 'status', message: `${leavingEmail} saiu do jogo.`});
+
             if (updatedGameState.gameWinner) {
                  updatedGameState.bidHistory.push({ type: 'status', message: `O jogo terminou! ${presences[updatedGameState.gameWinner]?.[0].email.split('@')[0]} venceu.`});
             } else {
-                updatedGameState.bidHistory.push({ type: 'status', message: `É a vez de ${presences[updatedGameState.currentPlayer]?.[0].email.split('@')[0]}.`});
-            }
-
-
-            // Transmite o estado atualizado
-            await updateAndBroadcastGameState(updatedGameState, true);
-        }
-
-        async function handleHostMigration(exitingHostId) {
-            const presenceState = currentRoomChannel.presenceState();
-            // Garante que o anfitrião que está saindo não seja considerado para a nova liderança.
-            // Isso evita uma condição de corrida onde a lista de presença ainda pode contê-lo.
-            const participantIds = Object.keys(presenceState).filter(id => id !== exitingHostId);
-
-            if (participantIds.length === 0) {
-                console.log('A sala está vazia. Nenhuma migração de anfitrião necessária.');
-                return;
-            }
-
-            // Lógica de seleção determinística: ordena os IDs dos participantes restantes
-            // e escolhe o primeiro como o novo anfitrião. Isso garante que todos os clientes
-            // concordem sobre quem é o novo anfitrião, sem depender de aleatoriedade.
-            participantIds.sort();
-            const newHostId = participantIds[0];
-
-            // Apenas o cliente que foi selecionado como o novo anfitrião atualiza o banco de dados.
-            if (currentUser && currentUser.id === newHostId) {
-                console.log(`Você é o novo anfitrião. Atualizando o banco de dados.`);
-                const { error } = await sb.from('rooms')
-                    .update({ creator_id: newHostId })
-                    .eq('room_code', currentRoom.room_code);
-
-                if (error) {
-                    console.error('Erro ao atualizar o anfitrião no banco de dados:', error.message);
-                } else {
-                    console.log('Anfitrião atualizado com sucesso no banco de dados.');
-                    // Transmite a mudança para todos os clientes, incluindo quem é o novo anfitrião.
-                    const newHostEmail = presenceState[newHostId]?.[0]?.email.split('@')[0] || 'um novo anfitrião';
-                    await currentRoomChannel.send({
-                        type: 'broadcast',
-                        event: 'host_change',
-                        payload: {
-                            newHostId: newHostId,
-                            newHostEmail: newHostEmail,
-                            oldHostId: exitingHostId // Adiciona o ID do anfitrião que saiu
-                        },
-                    });
+                // Apenas adiciona esta mensagem se o turno realmente mudou.
+                if (gameState.currentPlayer === leavingPlayerId) {
+                    updatedGameState.bidHistory.push({ type: 'status', message: `É a vez de ${presences[updatedGameState.currentPlayer]?.[0].email.split('@')[0]}.`});
                 }
             }
+
+            const gameEnded = !!updatedGameState.gameWinner;
+            await updateAndBroadcastGameState(updatedGameState, !gameEnded);
         }
 
         // --- 5. LÓGICA DE AUTENTICAÇÃO ---
@@ -1224,39 +1165,45 @@
                 }
             });
 
-            // Ouvinte para mudanças de anfitrião
-            currentRoomChannel.on('broadcast', { event: 'host_change' }, ({ payload }) => {
-                if (currentRoom) {
-                    const oldHostId = payload.oldHostId;
-                    currentRoom.creator_id = payload.newHostId;
-                    const newHostEmail = payload.newHostEmail || 'um novo anfitrião';
-                    showToast(`${newHostEmail} agora é o anfitrião!`);
+            // Ouvinte para o evento de fechamento da sala pelo anfitrião
+            currentRoomChannel.on('broadcast', { event: 'host_left_and_closed_room' }, () => {
+                // Não faça nada se este cliente for o anfitrião que está saindo
+                if (currentUser.id === currentRoom.creator_id) return;
 
-                    // Se o cliente atual for o NOVO anfitrião, ele é responsável
-                    // por limpar o estado do jogo.
-                    if (gameStarted && currentUser && currentUser.id === payload.newHostId) {
-                        console.log(`Você é o novo anfitrião. Removendo o anfitrião antigo (${oldHostId}) do jogo.`);
-                        handleGameStateUpdateForLeavingPlayer(oldHostId);
-                    }
-
-                    // Re-renderize a UI da sala e a lista de participantes para todos
-                    handlePresenceSync(currentRoomChannel.presenceState());
-                    renderRoomUI();
-                }
+                showToast("O anfitrião encerrou a sala. Você será redirecionado para o lobby.");
+                // Aguarda um momento para o usuário ler a mensagem e então executa a ação de sair
+                setTimeout(() => {
+                    leaveRoomBtn.click(); // Simula o clique no botão de sair
+                }, 2500);
             });
 
             currentRoomChannel.on('presence', { event: 'sync' }, () => handlePresenceSync(currentRoomChannel.presenceState()));
 
             // Novo: Ouvinte para detectar quando um jogador sai
-            currentRoomChannel.on('presence', { event: 'leave' }, ({ key, leftPresences }) => {
+            currentRoomChannel.on('presence', { event: 'leave' }, async ({ key, leftPresences }) => {
                 const leavingPlayerId = key;
-                // A 'key' é o ID do usuário que saiu
+
+                // Se o jogador que saiu é o anfitrião, a sala é fechada.
                 if (leavingPlayerId === currentRoom.creator_id) {
-                    console.log('O anfitrião saiu da sala. Iniciando a migração de anfitrião...');
-                    handleHostMigration(leavingPlayerId);
-                } else if (gameStarted && currentUser.id === currentRoom.creator_id) {
-                    // Se um jogador que não é o anfitrião sai E o cliente atual é o anfitrião,
-                    // o anfitrião é responsável por atualizar o estado do jogo.
+                    // Apenas o anfitrião que está saindo executa esta lógica
+                    if (currentUser.id === leavingPlayerId) {
+                        console.log("Você (anfitrião) está saindo. Notificando outros e fechando a sala.");
+
+                        // Notifica os outros clientes que a sala foi fechada
+                        await currentRoomChannel.send({
+                            type: 'broadcast',
+                            event: 'host_left_and_closed_room'
+                        });
+
+                        // Remove a sala do banco de dados
+                        const { error } = await sb.from('rooms').delete().eq('room_code', currentRoom.room_code);
+                        if (error) {
+                            console.error("Erro ao deletar a sala:", error.message);
+                        }
+                    }
+                }
+                // Se um jogador comum sai, e o cliente atual é o anfitrião, o estado do jogo é atualizado.
+                else if (gameStarted && currentUser.id === currentRoom.creator_id) {
                     console.log(`O jogador ${leavingPlayerId} saiu. O anfitrião está atualizando o estado do jogo.`);
                     handleGameStateUpdateForLeavingPlayer(leavingPlayerId);
                 }

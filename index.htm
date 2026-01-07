@@ -831,43 +831,41 @@
 
         async function handleGameStateUpdateForLeavingPlayer(leavingPlayerId) {
             if (!gameState || !gameStarted || !gameState.players[leavingPlayerId]) {
-                console.log("O jogo não está em andamento ou o jogador que saiu não estava jogando.");
-                return;
+                return; // Jogo não está ativo ou jogador não está no jogo.
             }
 
             const updatedGameState = JSON.parse(JSON.stringify(gameState));
             const originalTurnOrder = [...updatedGameState.turnOrder];
-            const leavingEmail = presences[leavingPlayerId]?.[0].email.split('@')[0] || 'Um jogador';
 
-            // Remove o jogador do estado
+            // 1. Remove o jogador do estado do jogo.
             delete updatedGameState.players[leavingPlayerId];
             updatedGameState.turnOrder = updatedGameState.turnOrder.filter(id => id !== leavingPlayerId);
 
+            // 2. Adiciona uma mensagem de status sobre a saída.
+            const leavingEmail = presences[leavingPlayerId]?.[0]?.email?.split('@')[0] || 'Um jogador';
             updatedGameState.bidHistory.push({ type: 'status', message: `${leavingEmail} saiu do jogo.` });
 
-            // Cenário 1: Menos de 2 jogadores restantes, o jogo termina.
+            // 3. Verifica IMEDIATAMENTE se o jogo deve terminar.
             if (updatedGameState.turnOrder.length < 2) {
-                // O anfitrião atualiza o banco de dados para refletir o fim do jogo.
-                const { error } = await sb.from('rooms').update({ game_started: false }).eq('room_code', currentRoom.room_code);
-                if (error) {
-                    showToast(`Erro ao finalizar o jogo: ${error.message}`);
-                }
-                // Notifica a todos que o jogo terminou por falta de jogadores.
-                // Passa gameState como nulo para limpar a UI do jogo.
+                // Atualiza o DB para permitir que novos jogadores entrem.
+                await sb.from('rooms').update({ game_started: false }).eq('room_code', currentRoom.room_code);
+                // Transmite o fim do jogo, limpando o estado para todos.
                 await updateAndBroadcastGameState(null, false, 'not_enough_players');
-                return;
+                return; // Encerra a função aqui.
             }
 
-            // Cenário 2: O jogo continua, ajusta o turno se necessário.
+            // 4. Se o jogo continua, determina o próximo turno.
             if (gameState.currentPlayer === leavingPlayerId) {
                 const originalIndex = originalTurnOrder.indexOf(leavingPlayerId);
-                updatedGameState.currentPlayer = updatedGameState.turnOrder[originalIndex % updatedGameState.turnOrder.length];
+                const nextPlayerId = updatedGameState.turnOrder[originalIndex % updatedGameState.turnOrder.length];
+                updatedGameState.currentPlayer = nextPlayerId;
 
-                const nextPlayerEmail = presences[updatedGameState.currentPlayer]?.[0].email.split('@')[0] || 'Próximo jogador';
+                // Busca o email do próximo jogador de forma segura.
+                const nextPlayerEmail = presences[nextPlayerId]?.[0]?.email?.split('@')[0] || 'Próximo jogador';
                 updatedGameState.bidHistory.push({ type: 'turn', message: `É a vez de ${nextPlayerEmail}.` });
             }
 
-            // Transmite o estado atualizado para continuar o jogo.
+            // 5. Transmite o estado atualizado para continuar o jogo.
             await updateAndBroadcastGameState(updatedGameState, true);
         }
 

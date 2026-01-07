@@ -1107,6 +1107,24 @@
         // --- 7. LÓGICA DAS SALAS (COM REALTIME) ---
         function handlePresenceSync(newState) {
             presences = newState; // Armazena o estado de presença mais recente
+
+            // Lógica robusta para lidar com a desconexão do anfitrião.
+            // O evento 'sync' é a fonte da verdade sobre quem está na sala.
+            const participantIds = Object.keys(newState);
+            const hostId = currentRoom?.creator_id;
+            const isHostPresent = participantIds.includes(hostId);
+
+            // Se o anfitrião não estiver mais presente e este cliente não for o anfitrião,
+            // a sala deve ser fechada para este cliente.
+            if (hostId && !isHostPresent && currentUser?.id !== hostId) {
+                showToast("O anfitrião se desconectou. A sala foi fechada.");
+                setTimeout(() => {
+                    // Clica no botão de sair para garantir uma limpeza adequada do estado
+                    leaveRoomBtn.click();
+                }, 2500);
+                return; // Impede a renderização adicional para evitar erros de estado
+            }
+
             const listToUpdate = [participantsList]; // A lista do modal é atualizada ao abrir
 
             listToUpdate.forEach(list => {

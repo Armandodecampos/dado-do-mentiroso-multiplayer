@@ -1152,6 +1152,7 @@
 
             // Atualiza a UI da sala (ex: habilitar/desabilitar botão de iniciar)
             renderRoomUI();
+            if (gameStarted) renderGameUI(); // Re-renderiza o status dos jogadores no topo
         }
 
         async function joinRoomRealtime(roomCode) {

@@ -503,10 +503,11 @@
         // --- 3. ESTADO DA APLICAÇÃO ---
         let currentUser = null;
         let currentRoomChannel = null;
-        let currentRoom = null; // Armazena detalhes da sala atual { room_code, creator_id }
-        let gameStarted = false; // Controla se o jogo começou
-        let gameState = null; // Armazena o estado completo do jogo
-        let presences = {}; // Armazena o estado de presença para mapear IDs para e-mails
+        let currentRoom = null;
+        let gameStarted = false;
+        let gameState = null;
+        let presences = {};
+        let channelSubscribedAt = null; // Rastreia o tempo de inscrição para evitar condições de corrida
 
         // --- 4. FUNÇÕES AUXILIARES ---
         function toggleLoading(isLoading) { loadingOverlay.classList.toggle('hidden', !isLoading); }
@@ -1203,46 +1204,46 @@
 
             currentRoomChannel.on('presence', { event: 'sync' }, () => handlePresenceSync(currentRoomChannel.presenceState()));
 
-            // Novo: Ouvinte para detectar quando um jogador sai
+            // Ouvinte para detectar quando um jogador sai
             currentRoomChannel.on('presence', { event: 'leave' }, async ({ key, leftPresences }) => {
                 const leavingPlayerId = key;
 
-                // Se o jogador que saiu é o anfitrião, a sala é fechada.
+                // CORREÇÃO: Implementa um período de carência para a saída do anfitrião.
+                // Isso evita uma condição de corrida onde o anfitrião parece sair imediatamente após criar a sala.
                 if (leavingPlayerId === currentRoom.creator_id) {
-                    // Apenas o anfitrião que está saindo executa esta lógica
-                    if (currentUser.id === leavingPlayerId) {
-                        console.log("Você (anfitrião) está saindo. Notificando outros e fechando a sala.");
-
-                        // Notifica os outros clientes que a sala foi fechada
-                        await currentRoomChannel.send({
-                            type: 'broadcast',
-                            event: 'host_left_and_closed_room'
-                        });
-
-                        // Remove a sala do banco de dados
-                        const { error } = await sb.from('rooms').delete().eq('room_code', currentRoom.room_code);
-                        if (error) {
-                            console.error("Erro ao deletar a sala:", error.message);
-                        }
+                    const now = Date.now();
+                    // Se o evento de saída ocorrer dentro de 1.5s da inscrição, ignore-o.
+                    if (channelSubscribedAt && now - channelSubscribedAt < 1500) {
+                        console.warn(`Ignorando o evento de saída do anfitrião devido ao período de carência.`);
+                        return;
                     }
                 }
-                // Se um jogador comum sai, e o cliente atual é o anfitrião, o estado do jogo é atualizado.
-                else if (gameStarted && currentUser.id === currentRoom.creator_id) {
+
+                if (leavingPlayerId !== currentRoom.creator_id && gameStarted && currentUser.id === currentRoom.creator_id) {
                     console.log(`O jogador ${leavingPlayerId} saiu. O anfitrião está atualizando o estado do jogo.`);
-                    handleGameStateUpdateForLeavingPlayer(leavingPlayerId);
+                    await handleGameStateUpdateForLeavingPlayer(leavingPlayerId);
                 }
             });
 
             currentRoomChannel.subscribe(async (status) => {
-                if (status === 'SUBSCRIBED') await currentRoomChannel.track({ email: currentUser.email, joined_at: new Date().toISOString() });
+                if (status === 'SUBSCRIBED') {
+                    channelSubscribedAt = Date.now(); // Define o tempo de inscrição
+                    await currentRoomChannel.track({ email: currentUser.email, joined_at: new Date().toISOString() });
+                }
             });
         }
 
         async function leaveRoomRealtime() {
             if (currentRoomChannel) {
-                try { await currentRoomChannel.untrack(); await sb.removeChannel(currentRoomChannel); }
-                catch (error) { console.error('Erro ao sair do canal:', error); }
-                currentRoomChannel = null; participantsList.innerHTML = '';
+                try {
+                    await currentRoomChannel.untrack();
+                    await sb.removeChannel(currentRoomChannel);
+                } catch (error) {
+                    console.error('Erro ao sair do canal:', error);
+                }
+                currentRoomChannel = null;
+                participantsList.innerHTML = '';
+                channelSubscribedAt = null; // Redefine o tempo de inscrição
             }
         }
 
@@ -1324,12 +1325,28 @@
 
         leaveRoomBtn.addEventListener('click', async () => {
             toggleLoading(true);
-            leaveRoomBtn.disabled = true; // Desabilita para evitar cliques duplos
+            leaveRoomBtn.disabled = true;
+
+            const isHost = currentUser && currentRoom && currentUser.id === currentRoom.creator_id;
+
             try {
+                // Se o anfitrião estiver saindo intencionalmente, ele primeiro notifica os outros e exclui a sala.
+                if (isHost && currentRoomChannel) {
+                     await currentRoomChannel.send({
+                        type: 'broadcast',
+                        event: 'host_left_and_closed_room'
+                    });
+                    const { error } = await sb.from('rooms').delete().eq('room_code', currentRoom.room_code);
+                    if (error) {
+                        console.error("Erro ao deletar a sala:", error.message);
+                        showToast(`Erro ao fechar a sala: ${error.message}`);
+                    }
+                }
+
+                // Todos os clientes (incluindo o anfitrião) executam a limpeza local.
                 await leaveRoomRealtime();
                 await clearUserCurrentRoom();
 
-                // Limpa o estado da sala e do jogo
                 currentRoom = null;
                 gameStarted = false;
                 gameState = null;
@@ -1342,12 +1359,11 @@
                 showLobbyMessage('', false);
             } catch (err) {
                 console.error("Erro ao sair da sala:", err);
-                // Mesmo que haja erro, a melhor ação é voltar ao lobby
                 showView('lobby-view');
                 showLobbyMessage("Ocorreu um erro ao sair da sala.", true);
             } finally {
                 toggleLoading(false);
-                leaveRoomBtn.disabled = false; // Reabilita o botão
+                leaveRoomBtn.disabled = false;
             }
         });
 

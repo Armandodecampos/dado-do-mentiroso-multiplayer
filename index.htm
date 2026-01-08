@@ -632,24 +632,32 @@
                 return;
             }
 
-            // Atualiza o sinalizador no banco de dados primeiro
-            const { error } = await sb.from('rooms').update({ game_started: true }).eq('room_code', currentRoom.room_code);
-            if (error) {
-                showLobbyMessage(`Erro ao iniciar o jogo: ${error.message}`, true);
-                return;
+            toggleLoading(true);
+            try {
+                // Atualiza o sinalizador no banco de dados primeiro
+                const { error } = await sb.from('rooms').update({ game_started: true }).eq('room_code', currentRoom.room_code);
+                if (error) {
+                    showLobbyMessage(`Erro ao iniciar o jogo: ${error.message}`, true);
+                    return; // Retorna para que o finally seja executado, mas a lógica de sucesso não
+                }
+
+                playerIds.sort();
+                const newGameState = createInitialGameState(playerIds, playerIds[0]);
+                newGameState.turnOrder = playerIds;
+                newGameState.bidHistory.push({ type: 'turn', message: `É a vez de ${presences[newGameState.currentPlayer]?.[0].email}.`});
+
+                for (const playerId in newGameState.players) {
+                    const player = newGameState.players[playerId];
+                    player.dice = Array.from({ length: player.diceCount }, () => Math.floor(Math.random() * 6) + 1);
+                }
+
+                await updateAndBroadcastGameState(newGameState, true);
+            } catch (err) {
+                console.error("Erro inesperado ao iniciar o jogo:", err);
+                showLobbyMessage("Ocorreu um erro inesperado. Tente novamente.", true);
+            } finally {
+                toggleLoading(false);
             }
-
-            playerIds.sort();
-            const newGameState = createInitialGameState(playerIds, playerIds[0]);
-            newGameState.turnOrder = playerIds;
-            newGameState.bidHistory.push({ type: 'turn', message: `É a vez de ${presences[newGameState.currentPlayer]?.[0].email}.`});
-
-            for (const playerId in newGameState.players) {
-                const player = newGameState.players[playerId];
-                player.dice = Array.from({ length: player.diceCount }, () => Math.floor(Math.random() * 6) + 1);
-            }
-
-            await updateAndBroadcastGameState(newGameState, true);
         }
 
         function renderGameUI() {
@@ -1073,33 +1081,38 @@
         });
 
 
-        endGameBtn.addEventListener('click', () => {
+        endGameBtn.addEventListener('click', async () => {
             if (!currentUser || !currentRoom || currentUser.id !== currentRoom.creator_id) return;
 
-            settingsModal.classList.add('hidden'); // Fecha o modal
+            settingsModal.classList.add('hidden');
+            toggleLoading(true);
 
-            // 1. Atualiza o estado local e a UI do anfitrião de forma síncrona para uma resposta imediata.
-            gameStarted = false;
-            gameState = null;
-            renderRoomUI();
+            try {
+                // 1. Atualiza o estado local e a UI do anfitrião de forma síncrona
+                gameStarted = false;
+                gameState = null;
+                renderRoomUI();
 
-            // 2. Realiza as operações de rede em segundo plano, sem bloquear a UI.
-            // Atualiza o estado da sala no banco de dados.
-            sb.from('rooms').update({ game_started: false }).eq('room_code', currentRoom.room_code)
-                .then(({ error }) => {
-                    if (error) {
-                        console.error('Erro ao atualizar a sala para finalizar o jogo:', error.message);
-                        showToast(`Erro de servidor ao finalizar o jogo: ${error.message}`);
-                    }
-                });
+                // 2. Realiza as operações de rede de forma assíncrona
+                const { error } = await sb.from('rooms').update({ game_started: false }).eq('room_code', currentRoom.room_code);
+                if (error) {
+                    console.error('Erro ao atualizar a sala para finalizar o jogo:', error.message);
+                    showToast(`Erro de servidor ao finalizar o jogo: ${error.message}`);
+                    // Mesmo com erro, tenta notificar os outros jogadores
+                }
 
-            // Transmite o estado de fim de jogo para os outros jogadores.
-            if (currentRoomChannel) {
-                currentRoomChannel.send({
-                    type: 'broadcast',
-                    event: 'game_state_update',
-                    payload: { gameState: null, gameStarted: false },
-                });
+                if (currentRoomChannel) {
+                    await currentRoomChannel.send({
+                        type: 'broadcast',
+                        event: 'game_state_update',
+                        payload: { gameState: null, gameStarted: false },
+                    });
+                }
+            } catch (err) {
+                console.error("Erro inesperado ao finalizar o jogo:", err);
+                showToast("Ocorreu um erro inesperado. Tente novamente.");
+            } finally {
+                toggleLoading(false);
             }
         });
 
@@ -1235,11 +1248,13 @@
 
         createRoomBtn.addEventListener('click', async () => {
             toggleLoading(true);
+            createRoomBtn.disabled = true;
             showLobbyMessage('', false);
+
             try {
                 if (!currentUser) {
                     showLobbyMessage('Erro: Usuário não está logado.', true);
-                    return; // Retorna para que o código de sucesso não seja executado
+                    return;
                 }
                 const newCode = generateRoomCode();
                 const { data, error } = await sb.from('rooms').insert({ room_code: newCode, creator_id: currentUser.id }).select().single();
@@ -1261,26 +1276,28 @@
                 showLobbyMessage("Ocorreu um erro inesperado. Tente novamente.", true);
             } finally {
                 toggleLoading(false);
+                createRoomBtn.disabled = false;
             }
         });
 
         joinRoomForm.addEventListener('submit', async (e) => {
             e.preventDefault();
+            const submitButton = joinRoomForm.querySelector('button[type="submit"]');
+            submitButton.disabled = true;
             toggleLoading(true);
             showLobbyMessage('', false);
+
             try {
                 const code = roomCodeInput.value.toUpperCase().trim();
                 if (!code) {
                     showLobbyMessage('Por favor, insira um código.', true);
                     return;
                 }
-                // Agora, também seleciona a coluna 'game_started'
                 const { data, error } = await sb.from('rooms').select('room_code, creator_id, game_started').eq('room_code', code).maybeSingle();
 
                 if (error) {
                     showLobbyMessage(error.message, true);
                 } else if (data) {
-                    // Verifica o sinalizador 'game_started'
                     if (data.game_started) {
                         showLobbyMessage('O jogo já começou nesta sala.', true);
                     } else {
@@ -1301,11 +1318,13 @@
                 showLobbyMessage("Ocorreu um erro inesperado. Tente novamente.", true);
             } finally {
                 toggleLoading(false);
+                submitButton.disabled = false;
             }
         });
 
         leaveRoomBtn.addEventListener('click', async () => {
             toggleLoading(true);
+            leaveRoomBtn.disabled = true; // Desabilita para evitar cliques duplos
             try {
                 await leaveRoomRealtime();
                 await clearUserCurrentRoom();
@@ -1328,6 +1347,7 @@
                 showLobbyMessage("Ocorreu um erro ao sair da sala.", true);
             } finally {
                 toggleLoading(false);
+                leaveRoomBtn.disabled = false; // Reabilita o botão
             }
         });
 

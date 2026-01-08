@@ -844,7 +844,7 @@
             }
 
             const updatedGameState = JSON.parse(JSON.stringify(gameState));
-            const originalTurnOrder = [...updatedGameState.turnOrder];
+            const originalTurnOrder = [...gameState.turnOrder]; // Copia a ordem original ANTES de qualquer modificação.
 
             // 1. Remove o jogador do estado do jogo.
             delete updatedGameState.players[leavingPlayerId];
@@ -863,10 +863,14 @@
                 return; // Encerra a função aqui.
             }
 
-            // 4. Se o jogo continua, determina o próximo turno.
+            // 4. Se o jogo continua e era a vez do jogador que saiu, determina o próximo turno.
             if (gameState.currentPlayer === leavingPlayerId) {
                 const originalIndex = originalTurnOrder.indexOf(leavingPlayerId);
-                const nextPlayerId = updatedGameState.turnOrder[originalIndex % updatedGameState.turnOrder.length];
+                // A nova lista é menor. O próximo jogador estará no mesmo índice,
+                // a menos que o jogador que saiu fosse o último, caso em que o próximo é o primeiro.
+                // O operador de módulo (%) lida com essa lógica de "enrolar".
+                const nextIndex = originalIndex % updatedGameState.turnOrder.length;
+                const nextPlayerId = updatedGameState.turnOrder[nextIndex];
                 updatedGameState.currentPlayer = nextPlayerId;
 
                 // Busca o email do próximo jogador de forma segura.

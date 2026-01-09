@@ -1314,7 +1314,7 @@
                     return;
                 }
                 const newCode = generateRoomCode();
-                const { data, error } = await sb.from('rooms').insert({ room_code: newCode, creator_id: currentUser.id }).select().single();
+                const { data, error } = await sb.from('rooms').insert({ room_code: newCode, creator_id: currentUser.id, game_started: false }).select().single();
 
                 if (error) {
                     if (error.code === '23505') showLobbyMessage('Erro ao criar sala, tente novamente.', true);

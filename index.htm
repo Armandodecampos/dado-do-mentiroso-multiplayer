@@ -901,17 +901,30 @@
 
             // 4. Se o jogo continua e era a vez do jogador que saiu, determina o próximo turno.
             if (gameState.currentPlayer === leavingPlayerId) {
-                const originalIndex = originalTurnOrder.indexOf(leavingPlayerId);
-                // A nova lista é menor. O próximo jogador estará no mesmo índice,
-                // a menos que o jogador que saiu fosse o último, caso em que o próximo é o primeiro.
-                // O operador de módulo (%) lida com essa lógica de "enrolar".
-                const nextIndex = originalIndex % updatedGameState.turnOrder.length;
-                const nextPlayerId = updatedGameState.turnOrder[nextIndex];
-                updatedGameState.currentPlayer = nextPlayerId;
+                const leavingPlayerIndex = originalTurnOrder.indexOf(leavingPlayerId);
+                let nextPlayerId = null;
 
-                // Busca o email do próximo jogador de forma segura.
-                const nextPlayerEmail = presences[nextPlayerId]?.[0]?.email?.split('@')[0] || 'Próximo jogador';
-                updatedGameState.bidHistory.push({ type: 'turn', message: `É a vez de ${nextPlayerEmail}.` });
+                // Começando do jogador que saiu, percorra a ordem de turno original em um loop
+                // para encontrar o primeiro jogador subsequente que ainda está ativo.
+                if (leavingPlayerIndex !== -1) {
+                    for (let i = 1; i <= originalTurnOrder.length; i++) {
+                        const nextIndex = (leavingPlayerIndex + i) % originalTurnOrder.length;
+                        const potentialNextPlayerId = originalTurnOrder[nextIndex];
+
+                        // O próximo jogador deve estar na lista de jogadores atualizada E ter mais de 0 dados.
+                        if (updatedGameState.players[potentialNextPlayerId] && updatedGameState.players[potentialNextPlayerId].diceCount > 0) {
+                            nextPlayerId = potentialNextPlayerId;
+                            break; // Encontrou o jogador
+                        }
+                    }
+                }
+
+                if (nextPlayerId) {
+                    updatedGameState.currentPlayer = nextPlayerId;
+                    const nextPlayerEmail = presences[nextPlayerId]?.[0]?.email?.split('@')[0] || 'Próximo jogador';
+                    updatedGameState.bidHistory.push({ type: 'turn', message: `É a vez de ${nextPlayerEmail}.` });
+                }
+                // Se nenhum jogador ativo for encontrado, a lógica de fim de jogo cuidará disso.
             }
 
             // 5. Transmite o estado atualizado para continuar o jogo.

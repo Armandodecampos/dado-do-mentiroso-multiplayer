@@ -265,32 +265,19 @@
                     <!-- D. Controles de Ação -->
                     <div id="bottom-actions" class="p-4 bg-white border-t border-gray-300 pb-safe">
                         
-                        <!-- Formulário de Lance (Botões) -->
-                        <div id="bid-container" class="flex items-center justify-center gap-4 mb-4">
-                            <!-- Seletor de Quantidade -->
-                            <div class="flex items-center gap-2">
-                                <button id="decrease-quantity-btn" class="px-3 py-1 bg-gray-200 text-black rounded-md font-bold text-lg">-</button>
-                                <div class="flex flex-col items-center">
-                                    <span class="text-sm text-gray-500">Dados</span>
-                                    <span id="bid-quantity-display" class="w-12 text-center font-bold text-2xl">1</span>
-                                </div>
-                                <button id="increase-quantity-btn" class="px-3 py-1 bg-gray-200 text-black rounded-md font-bold text-lg">+</button>
-                            </div>
-
-                            <!-- Separador Visual -->
-                            <div class="border-l h-10 border-gray-300"></div>
-
-                            <!-- Seletor de Face -->
-                            <div class="flex items-center gap-2">
-                                <button id="decrease-face-btn" class="px-3 py-1 bg-gray-200 text-black rounded-md font-bold text-lg">-</button>
-                                <div class="flex flex-col items-center">
-                                    <span class="text-sm text-gray-500">Face</span>
-                                    <div id="bid-face-display" class="w-12 h-12 flex items-center justify-center">
-                                        <svg class="w-10 h-10"><use href="#dice-1"></use></svg>
-                                    </div>
-                                </div>
-                                <button id="increase-face-btn" class="px-3 py-1 bg-gray-200 text-black rounded-md font-bold text-lg">+</button>
-                            </div>
+                        <!-- Formulário de Lance (Inputs) -->
+                        <div id="bid-container" class="flex items-center justify-center gap-2 mb-4">
+                            <label for="bid-quantity" class="sr-only">Quantidade</label>
+                            <input type="number" id="bid-quantity" min="1" value="1" class="w-20 bg-white border border-gray-300 text-black p-2 rounded-lg text-center font-bold text-lg" />
+                            <label for="bid-face" class="sr-only">Face do Dado</label>
+                            <select id="bid-face" class="w-24 bg-white border border-gray-300 text-black p-2 rounded-lg font-bold">
+                                    <option value="1">1</option>
+                                    <option value="2">2</option>
+                                    <option value="3">3</option>
+                                    <option value="4">4</option>
+                                    <option value="5">5</option>
+                                    <option value="6">6</option>
+                            </select>
                         </div>
 
                         <!-- Botões de Ações -->
@@ -512,18 +499,10 @@
         const myDiceDisplay = document.getElementById('my-dice-display'); // Movido
         const historyMessages = document.getElementById('history-messages'); // Novo
         const historyContainer = document.getElementById('history-container'); // Novo para rolagem
-        // Referências dos Controles de Lance
-        const bidQuantityDisplay = document.getElementById('bid-quantity-display');
-        const bidFaceDisplay = document.getElementById('bid-face-display');
-        const increaseQuantityBtn = document.getElementById('increase-quantity-btn');
-        const decreaseQuantityBtn = document.getElementById('decrease-quantity-btn');
-        const increaseFaceBtn = document.getElementById('increase-face-btn');
-        const decreaseFaceBtn = document.getElementById('decrease-face-btn');
 
         // --- 3. ESTADO DA APLICAÇÃO ---
         let currentUser = null;
         let currentRoomChannel = null;
-        let currentBidInput = { quantity: 1, face: 1 }; // Estado local para a UI de lance
         let currentRoom = null;
         let gameStarted = false;
         let gameState = null;
@@ -824,21 +803,6 @@
 
             // 6. Habilita/desabilita ações
             const isMyTurn = currentUser.id === currentPlayer;
-
-            if (isMyTurn) {
-                // Se for a vez do jogador, reinicie a UI do lance para um valor válido.
-                if (currentBid) {
-                    // O próximo lance deve ser maior. Começa aumentando a face.
-                    currentBidInput.quantity = currentBid.quantity;
-                    currentBidInput.face = currentBid.face < 6 ? currentBid.face + 1 : 6;
-                } else {
-                    // Primeiro lance da rodada.
-                    currentBidInput.quantity = 1;
-                    currentBidInput.face = 1;
-                }
-                updateBidUI(); // Atualiza a exibição visual
-            }
-
             bidBtn.disabled = !isMyTurn;
             challengeBtn.disabled = !isMyTurn || !currentBid; // Só pode desafiar se houver um lance
             exactBtn.disabled = !isMyTurn || !currentBid;
@@ -901,30 +865,17 @@
 
             // 4. Se o jogo continua e era a vez do jogador que saiu, determina o próximo turno.
             if (gameState.currentPlayer === leavingPlayerId) {
-                const leavingPlayerIndex = originalTurnOrder.indexOf(leavingPlayerId);
-                let nextPlayerId = null;
+                const originalIndex = originalTurnOrder.indexOf(leavingPlayerId);
+                // A nova lista é menor. O próximo jogador estará no mesmo índice,
+                // a menos que o jogador que saiu fosse o último, caso em que o próximo é o primeiro.
+                // O operador de módulo (%) lida com essa lógica de "enrolar".
+                const nextIndex = originalIndex % updatedGameState.turnOrder.length;
+                const nextPlayerId = updatedGameState.turnOrder[nextIndex];
+                updatedGameState.currentPlayer = nextPlayerId;
 
-                // Começando do jogador que saiu, percorra a ordem de turno original em um loop
-                // para encontrar o primeiro jogador subsequente que ainda está ativo.
-                if (leavingPlayerIndex !== -1) {
-                    for (let i = 1; i <= originalTurnOrder.length; i++) {
-                        const nextIndex = (leavingPlayerIndex + i) % originalTurnOrder.length;
-                        const potentialNextPlayerId = originalTurnOrder[nextIndex];
-
-                        // O próximo jogador deve estar na lista de jogadores atualizada E ter mais de 0 dados.
-                        if (updatedGameState.players[potentialNextPlayerId] && updatedGameState.players[potentialNextPlayerId].diceCount > 0) {
-                            nextPlayerId = potentialNextPlayerId;
-                            break; // Encontrou o jogador
-                        }
-                    }
-                }
-
-                if (nextPlayerId) {
-                    updatedGameState.currentPlayer = nextPlayerId;
-                    const nextPlayerEmail = presences[nextPlayerId]?.[0]?.email?.split('@')[0] || 'Próximo jogador';
-                    updatedGameState.bidHistory.push({ type: 'turn', message: `É a vez de ${nextPlayerEmail}.` });
-                }
-                // Se nenhum jogador ativo for encontrado, a lógica de fim de jogo cuidará disso.
+                // Busca o email do próximo jogador de forma segura.
+                const nextPlayerEmail = presences[nextPlayerId]?.[0]?.email?.split('@')[0] || 'Próximo jogador';
+                updatedGameState.bidHistory.push({ type: 'turn', message: `É a vez de ${nextPlayerEmail}.` });
             }
 
             // 5. Transmite o estado atualizado para continuar o jogo.
@@ -1424,70 +1375,11 @@
         });
 
         // --- 8. LÓGICA DE AÇÕES DO JOGO ---
-
-        function updateBidUI() {
-            bidQuantityDisplay.textContent = currentBidInput.quantity;
-            bidFaceDisplay.innerHTML = `<svg class="w-10 h-10"><use href="#dice-${currentBidInput.face}"></use></svg>`;
-        }
-
-        decreaseQuantityBtn.addEventListener('click', () => {
-            const { currentBid } = gameState || {};
-            const minQuantity = currentBid ? currentBid.quantity : 1;
-
-            // Não pode diminuir abaixo do lance atual ou de 1
-            if (currentBidInput.quantity > minQuantity) {
-                currentBidInput.quantity--;
-                 // Se a quantidade diminuir para a do lance atual, a face deve ser maior
-                if (currentBidInput.quantity === currentBid?.quantity && currentBidInput.face <= currentBid?.face) {
-                    currentBidInput.face = currentBid.face + 1;
-                    if (currentBidInput.face > 6) {
-                        currentBidInput.quantity++; // Se não for possível aumentar a face, reverte a diminuição da quantidade
-                        currentBidInput.face = 1;
-                    }
-                }
-                updateBidUI();
-            }
-        });
-
-        increaseFaceBtn.addEventListener('click', () => {
-            if (currentBidInput.face < 6) {
-                currentBidInput.face++;
-            } else {
-                currentBidInput.face = 1; // Volta para 1
-            }
-            updateBidUI();
-        });
-
-        increaseQuantityBtn.addEventListener('click', () => {
-            currentBidInput.quantity++;
-            // Se a quantidade aumentar, a restrição da face do lance anterior é removida.
-            // Opcional: redefinir a face para 1 para conveniência.
-            const { currentBid } = gameState || {};
-            if (currentBid && currentBidInput.quantity > currentBid.quantity) {
-                currentBidInput.face = 1;
-            }
-            updateBidUI();
-        });
-
-        decreaseFaceBtn.addEventListener('click', () => {
-            const { currentBid } = gameState || {};
-            const minFace = (currentBid && currentBidInput.quantity === currentBid.quantity) ? currentBid.face + 1 : 1;
-
-            if (currentBidInput.face > minFace) {
-                currentBidInput.face--;
-            } else {
-                // Se não puder diminuir mais, volta para 6 (ou o máximo permitido)
-                currentBidInput.face = 6;
-            }
-            updateBidUI();
-        });
-
-
         bidBtn.addEventListener('click', async () => {
             if (!gameState || currentUser.id !== gameState.currentPlayer) return;
 
-            const quantity = currentBidInput.quantity;
-            const face = currentBidInput.face;
+            const quantity = parseInt(document.getElementById('bid-quantity').value, 10);
+            const face = parseInt(document.getElementById('bid-face').value, 10);
 
             // Validação do lance
             const { currentBid } = gameState;
@@ -1814,7 +1706,6 @@
             renderRoomUI: () => renderRoomUI(),
             renderGameUI: () => renderGameUI(),
             showView: (viewId) => showView(viewId),
-            setRoomViewMode: (isFullScreen) => setRoomViewMode(isFullScreen),
         };
     </script>
 </body>

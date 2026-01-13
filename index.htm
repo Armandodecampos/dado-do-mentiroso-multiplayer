@@ -1314,7 +1314,7 @@
                 }
 
                 // Chama a função RPC para criar a sala com um código sequencial
-                const { data, error } = await sb.rpc('create_room_with_sequential_code', {
+                const { data, error } = await sb.rpc('create_room_and_get_code', {
                     p_creator_id: currentUser.id
                 }).single();
 

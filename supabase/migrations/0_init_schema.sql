@@ -54,7 +54,7 @@ CREATE POLICY "Allow host to update own room." ON public.rooms FOR UPDATE USING 
 CREATE POLICY "Allow host to delete own room." ON public.rooms FOR DELETE USING (auth.uid() = creator_id);
 
 -- 8. Cria a função para gerar códigos de sala sequenciais
-CREATE OR REPLACE FUNCTION create_room_with_sequential_code(p_creator_id UUID)
+CREATE OR REPLACE FUNCTION create_room_and_get_code(p_creator_id UUID)
 -- Retorna um único registro que corresponde à estrutura da tabela de salas
 RETURNS SETOF rooms AS $$
 DECLARE

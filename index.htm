@@ -542,6 +542,7 @@
             ['auth-view', 'lobby-view', 'room-view'].forEach(id => document.getElementById(id).classList.add('hidden'));
             document.getElementById(viewId).classList.remove('hidden');
         }
+        function generateRoomCode() { return Math.random().toString(36).substring(2, 8).toUpperCase(); }
 
         let toastTimeout;
         function showToast(message) {
@@ -579,9 +580,6 @@
 
         function renderRoomUI() {
             if (!currentRoom || !currentUser) return;
-
-            // Define o código da sala na UI
-            roomCodeDisplay.textContent = currentRoom.room_code;
 
             const isHost = currentUser.id === currentRoom.creator_id;
 
@@ -828,11 +826,11 @@
             const isMyTurn = currentUser.id === currentPlayer;
 
             if (isMyTurn) {
-                // Se for a vez do jogador, configure a UI de lances.
+                // Se for a vez do jogador, reinicie a UI do lance para um valor válido.
                 if (currentBid) {
-                    // Mostra o último lance. O usuário deve aumentá-lo.
+                    // O próximo lance deve ser maior. Começa aumentando a face.
                     currentBidInput.quantity = currentBid.quantity;
-                    currentBidInput.face = currentBid.face;
+                    currentBidInput.face = currentBid.face < 6 ? currentBid.face + 1 : 6;
                 } else {
                     // Primeiro lance da rodada.
                     currentBidInput.quantity = 1;
@@ -1315,24 +1313,20 @@
                     showLobbyMessage('Erro: Usuário não está logado.', true);
                     return;
                 }
-
-                // Chama a função do banco de dados para criar a sala de forma atômica
-                const { data, error } = await sb.rpc('create_room_with_sequential_code', {
-                    p_creator_id: currentUser.id
-                });
+                const newCode = generateRoomCode();
+                const { data, error } = await sb.from('rooms').insert({ room_code: newCode, creator_id: currentUser.id, game_started: false }).select().single();
 
                 if (error) {
-                    showLobbyMessage(`Erro ao criar sala: ${error.message}`, true);
-                } else if (data && data.length > 0) {
-                    const newRoom = data[0]; // A função retorna um array com a sala criada
-                    currentRoom = newRoom;
+                    if (error.code === '23505') showLobbyMessage('Erro ao criar sala, tente novamente.', true);
+                    else showLobbyMessage(error.message, true);
+                } else if (data) {
+                    currentRoom = data;
+                    roomCodeDisplay.textContent = data.room_code;
                     showView('room-view');
                     setRoomViewMode(true);
-                    await joinRoomRealtime(newRoom.room_code);
-                    await saveUserCurrentRoom(newRoom.room_code);
+                    await joinRoomRealtime(data.room_code);
+                    await saveUserCurrentRoom(data.room_code);
                     renderRoomUI();
-                } else {
-                    showLobbyMessage('Não foi possível criar a sala. Tente novamente.', true);
                 }
             } catch (err) {
                 console.error("Erro inesperado ao criar sala:", err);

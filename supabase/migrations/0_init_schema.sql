@@ -69,10 +69,15 @@ BEGIN
         -- Isso é mais leve do que bloquear a tabela inteira
         PERFORM pg_advisory_xact_lock(1);
 
-        SELECT COALESCE(MAX(CAST(room_code AS INTEGER)), 0)
+        -- CORREÇÃO: Usa uma CTE para garantir que o CAST seja aplicado apenas a valores numéricos
+        WITH numeric_codes AS (
+            SELECT room_code::integer AS code
+            FROM rooms
+            WHERE room_code ~ '^\d+$'
+        )
+        SELECT COALESCE(MAX(code), 0)
         INTO max_num
-        FROM rooms
-        WHERE room_code ~ '^\d+$';
+        FROM numeric_codes;
 
         -- 2. Calcula o novo código da sala
         new_code := (max_num + 1)::text;

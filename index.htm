@@ -649,33 +649,33 @@
                 return;
             }
 
-            toggleLoading(true);
+            toggleLoading(true); // Mostra o carregamento
             try {
-                // Atualiza o sinalizador no banco de dados primeiro
+                // 1. Atualiza o banco de dados para marcar o jogo como iniciado.
                 const { error } = await sb.from('rooms').update({ game_started: true }).eq('room_code', currentRoom.room_code);
                 if (error) {
-                    showLobbyMessage(`Erro ao iniciar o jogo: ${error.message}`, true);
-                    toggleLoading(false); // Oculta o carregamento em caso de erro de DB
-                    return;
+                    throw new Error(`Erro ao iniciar o jogo: ${error.message}`);
                 }
 
+                // 2. Cria o estado inicial do jogo.
                 playerIds.sort();
                 const newGameState = createInitialGameState(playerIds, playerIds[0]);
                 newGameState.turnOrder = playerIds;
-                newGameState.bidHistory.push({ type: 'turn', message: `É a vez de ${presences[newGameState.currentPlayer]?.[0].email}.`});
+                newGameState.bidHistory.push({ type: 'turn', message: `É a vez de ${presences[newGameState.currentPlayer]?.[0].email}.` });
 
                 for (const playerId in newGameState.players) {
                     const player = newGameState.players[playerId];
                     player.dice = Array.from({ length: player.diceCount }, () => Math.floor(Math.random() * 6) + 1);
                 }
 
-                // A transmissão acionará a atualização da UI para todos, incluindo o anfitrião.
-                // O overlay de carregamento será ocultado pelo ouvinte do evento de broadcast.
+                // 3. Transmite o novo estado. A UI do anfitrião será atualizada pelo ouvinte,
+                // que também é responsável por ocultar o carregamento.
                 await updateAndBroadcastGameState(newGameState, true);
+
             } catch (err) {
-                console.error("Erro inesperado ao iniciar o jogo:", err);
-                showLobbyMessage("Ocorreu um erro inesperado. Tente novamente.", true);
-                toggleLoading(false); // Oculta o carregamento em caso de erro inesperado
+                console.error("Erro ao iniciar o jogo:", err);
+                showLobbyMessage(err.message, true);
+                toggleLoading(false); // Garante que o carregamento seja ocultado em caso de erro.
             }
         }
 

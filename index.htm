@@ -542,7 +542,6 @@
             ['auth-view', 'lobby-view', 'room-view'].forEach(id => document.getElementById(id).classList.add('hidden'));
             document.getElementById(viewId).classList.remove('hidden');
         }
-        function generateRoomCode() { return Math.random().toString(36).substring(2, 8).toUpperCase(); }
 
         let toastTimeout;
         function showToast(message) {
@@ -1313,8 +1312,7 @@
                     showLobbyMessage('Erro: Usuário não está logado.', true);
                     return;
                 }
-                const newCode = generateRoomCode();
-                const { data, error } = await sb.from('rooms').insert({ room_code: newCode, creator_id: currentUser.id, game_started: false }).select().single();
+                const { data, error } = await sb.rpc('create_room_and_get_code', { p_creator_id: currentUser.id }).single();
 
                 if (error) {
                     if (error.code === '23505') showLobbyMessage('Erro ao criar sala, tente novamente.', true);

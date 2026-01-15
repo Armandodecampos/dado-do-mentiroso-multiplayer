@@ -1216,7 +1216,14 @@
         async function joinRoomRealtime(roomCode) {
             if (!currentUser) return;
             await leaveRoomRealtime();
-            currentRoomChannel = sb.channel(`room:${roomCode}`, { config: { presence: { key: currentUser.id } } });
+            // CORRIGIDO: Adicionado broadcast: { self: true } para que o anfitrião receba seus próprios eventos.
+            // Isso é crucial para garantir que a UI do anfitrião seja atualizada pela mesma lógica que a dos outros jogadores.
+            currentRoomChannel = sb.channel(`room:${roomCode}`, {
+                config: {
+                    presence: { key: currentUser.id },
+                    broadcast: { self: true }
+                }
+            });
 
             // Ouvinte para ATUALIZAÇÕES GERAIS DO JOGO
             currentRoomChannel.on('broadcast', { event: 'game_state_update' }, ({ payload }) => {

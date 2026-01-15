@@ -625,17 +625,12 @@
          * @param {boolean} newGameStarted - O estado de "jogo iniciado".
          */
         async function updateAndBroadcastGameState(newGameState, newGameStarted, reason = null) {
-            // 1. Atualiza o estado local primeiro
-            gameState = newGameState;
-            gameStarted = newGameStarted;
+            // NÃO atualiza mais o estado local ou renderiza a UI aqui.
+            // A atualização agora é tratada de forma consistente pelo ouvinte de broadcast
+            // para todos os clientes, incluindo o anfitrião.
 
-            // 2. Renderiza a UI localmente
-            renderRoomUI();
-            if (newGameStarted) {
-                renderGameUI();
-            }
-
-            // 3. Transmite o novo estado para os outros, incluindo o motivo da mudança.
+            // Apenas transmite o novo estado. O anfitrião receberá este evento
+            // como qualquer outro cliente e atualizará sua UI nesse momento.
             if (currentRoomChannel) {
                 await currentRoomChannel.send({
                     type: 'broadcast',
@@ -660,7 +655,8 @@
                 const { error } = await sb.from('rooms').update({ game_started: true }).eq('room_code', currentRoom.room_code);
                 if (error) {
                     showLobbyMessage(`Erro ao iniciar o jogo: ${error.message}`, true);
-                    return; // Retorna para que o finally seja executado, mas a lógica de sucesso não
+                    toggleLoading(false); // Oculta o carregamento em caso de erro de DB
+                    return;
                 }
 
                 playerIds.sort();
@@ -673,12 +669,13 @@
                     player.dice = Array.from({ length: player.diceCount }, () => Math.floor(Math.random() * 6) + 1);
                 }
 
+                // A transmissão acionará a atualização da UI para todos, incluindo o anfitrião.
+                // O overlay de carregamento será ocultado pelo ouvinte do evento de broadcast.
                 await updateAndBroadcastGameState(newGameState, true);
             } catch (err) {
                 console.error("Erro inesperado ao iniciar o jogo:", err);
                 showLobbyMessage("Ocorreu um erro inesperado. Tente novamente.", true);
-            } finally {
-                toggleLoading(false);
+                toggleLoading(false); // Oculta o carregamento em caso de erro inesperado
             }
         }
 
@@ -1233,17 +1230,21 @@
             // Ouvinte para ATUALIZAÇÕES GERAIS DO JOGO
             currentRoomChannel.on('broadcast', { event: 'game_state_update' }, ({ payload }) => {
                 gameStarted = payload.gameStarted;
-            gameState = payload.gameState; // Pode ser nulo se o jogo terminou
+                gameState = payload.gameState; // Pode ser nulo se o jogo terminou
 
-            // Lógica adicional para tratar o motivo do fim do jogo
-            if (payload.reason === 'not_enough_players') {
-                showToast("O jogo terminou por falta de jogadores.");
-            }
+                // Lógica adicional para tratar o motivo do fim do jogo
+                if (payload.reason === 'not_enough_players') {
+                    showToast("O jogo terminou por falta de jogadores.");
+                }
 
-            renderRoomUI(); // Sempre renderiza a UI da sala (que mostrará o lobby se gameStarted for falso)
+                renderRoomUI(); // Sempre renderiza a UI da sala (que mostrará o lobby se gameStarted for falso)
                 if (payload.gameStarted) {
                     renderGameUI();
                 }
+
+                // Como a UI foi renderizada, oculta o overlay de carregamento.
+                // Isso é crucial para o anfitrião, que estava aguardando este evento.
+                toggleLoading(false);
             });
 
             // Ouvinte para o evento de fechamento da sala pelo anfitrião

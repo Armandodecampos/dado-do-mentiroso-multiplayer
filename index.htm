@@ -542,7 +542,7 @@
             ['auth-view', 'lobby-view', 'room-view'].forEach(id => document.getElementById(id).classList.add('hidden'));
             document.getElementById(viewId).classList.remove('hidden');
         }
-        function generateRoomCode() { return Math.random().toString(36).substring(2, 8).toUpperCase(); }
+        function generateRoomCode() { return Math.floor(Math.random() * 900000 + 100000).toString(); }
 
         let toastTimeout;
         function showToast(message) {

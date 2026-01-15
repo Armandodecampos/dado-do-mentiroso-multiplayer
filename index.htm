@@ -1387,9 +1387,9 @@
             const isHost = currentUser && currentRoom && currentUser.id === currentRoom.creator_id;
 
             try {
-                // Se o anfitrião estiver saindo intencionalmente, ele primeiro notifica os outros e exclui a sala.
+                // 1. Executa todas as operações de rede primeiro.
                 if (isHost && currentRoomChannel) {
-                     await currentRoomChannel.send({
+                    await currentRoomChannel.send({
                         type: 'broadcast',
                         event: 'host_left_and_closed_room'
                     });
@@ -1399,26 +1399,26 @@
                         showToast(`Erro ao fechar a sala: ${error.message}`);
                     }
                 }
-
-                // Todos os clientes (incluindo o anfitrião) executam a limpeza local.
                 await leaveRoomRealtime();
                 await clearUserCurrentRoom();
 
+            } catch (err) {
+                // Mesmo que ocorra um erro de rede, o bloco finally garantirá a limpeza da UI.
+                console.error("Erro de rede ao sair da sala:", err);
+                showLobbyMessage("Ocorreu um erro de rede ao sair da sala.", true);
+            } finally {
+                // 2. Garante que a limpeza do estado local e da UI ocorra independentemente do sucesso da rede.
                 currentRoom = null;
                 gameStarted = false;
                 gameState = null;
+                presences = {}; // Limpa as presenças locais
+
                 document.getElementById('game-controls').innerHTML = '';
-                gameView.classList.add('hidden');
-                settingsBtn.classList.remove('hidden');
 
                 setRoomViewMode(false);
                 showView('lobby-view');
-                showLobbyMessage('', false);
-            } catch (err) {
-                console.error("Erro ao sair da sala:", err);
-                showView('lobby-view');
-                showLobbyMessage("Ocorreu um erro ao sair da sala.", true);
-            } finally {
+                showLobbyMessage('', false); // Limpa qualquer mensagem de erro anterior do lobby
+
                 toggleLoading(false);
                 leaveRoomBtn.disabled = false;
             }

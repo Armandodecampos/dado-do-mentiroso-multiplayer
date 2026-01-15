@@ -1139,31 +1139,22 @@
             toggleLoading(true);
 
             try {
-                // 1. Atualiza o estado local e a UI do anfitrião de forma síncrona
-                gameStarted = false;
-                gameState = null;
-                renderRoomUI();
-
-                // 2. Realiza as operações de rede de forma assíncrona
+                // 1. Apenas realiza as operações de rede.
                 const { error } = await sb.from('rooms').update({ game_started: false }).eq('room_code', currentRoom.room_code);
                 if (error) {
                     console.error('Erro ao atualizar a sala para finalizar o jogo:', error.message);
                     showToast(`Erro de servidor ao finalizar o jogo: ${error.message}`);
-                    // Mesmo com erro, tenta notificar os outros jogadores
+                    toggleLoading(false); // Garante que o carregamento seja ocultado em caso de erro
+                    return;
                 }
 
-                if (currentRoomChannel) {
-                    await currentRoomChannel.send({
-                        type: 'broadcast',
-                        event: 'game_state_update',
-                        payload: { gameState: null, gameStarted: false },
-                    });
-                }
+                // 2. Transmite o estado finalizado. A UI do anfitrião será atualizada pelo ouvinte de broadcast.
+                await updateAndBroadcastGameState(null, false);
+
             } catch (err) {
                 console.error("Erro inesperado ao finalizar o jogo:", err);
                 showToast("Ocorreu um erro inesperado. Tente novamente.");
-            } finally {
-                toggleLoading(false);
+                toggleLoading(false); // Garante que o carregamento seja ocultado em caso de erro
             }
         });
 

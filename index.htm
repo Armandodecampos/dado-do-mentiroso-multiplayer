@@ -42,6 +42,25 @@
         .dice-roll-animation {
             animation: dice-roll 0.5s ease-out;
         }
+        /* Animação de explosão para o dado perdido */
+        @keyframes dice-explode {
+            0% {
+                transform: scale(1) rotate(0deg);
+                opacity: 1;
+            }
+            50% {
+                transform: scale(1.5) rotate(180deg);
+                opacity: 0.5;
+            }
+            100% {
+                transform: scale(0) rotate(360deg);
+                opacity: 0;
+            }
+        }
+        .dice-explode-animation {
+            /* 'forwards' mantém o estado final da animação (invisível) */
+            animation: dice-explode 0.6s ease-in-out forwards;
+        }
         body {
             font-family: 'Inter', sans-serif;
         }
@@ -292,7 +311,7 @@
                 </div>
 
                 <!-- CONTAINER FIXO DO RODAPÉ (APENAS DADOS) -->
-                <div id="bottom-panel" class="fixed bottom-0 left-0 w-full z-30 bg-gray-100 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)]">
+                <div id="bottom-panel" class="fixed bottom-0 left-0 w-full z-30 bg-gray-900 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)]">
 
                     <!-- C. Área dos Dados do Jogador -->
                     <div id="my-dice-area-container" class="p-4 bg-gray-900 border-t border-gray-700">
@@ -732,10 +751,37 @@
                     diceByPlayer[pId] = players[pId].dice;
                 }
 
+                const loserIds = roundInfo.losers || []; // Usa o array de perdedores
+
                 for (const playerId in diceByPlayer) {
                     const playerEmail = presences[playerId]?.[0].email || 'Jogador';
-                    const diceHtml = diceByPlayer[playerId].map(d => diceSVGTags[d]).join(' ');
-                    allDiceReveal.innerHTML += `<div class="mb-2"><p class="font-semibold">${playerEmail}:</p><div class="flex justify-center gap-2">${diceHtml}</div></div>`;
+                    const isLoser = loserIds.includes(playerId);
+
+                    let diceHtml = '';
+                    const diceArray = diceByPlayer[playerId];
+
+                    if (isLoser) {
+                        // Anima o último dado para o perdedor
+                        diceArray.forEach((d, index) => {
+                            const dieSvg = diceSVGTags[d];
+                            if (index === diceArray.length - 1) {
+                                // Este é o último dado, envolve-o e adiciona a classe de animação
+                                diceHtml += `<div class="dice-explode-animation">${dieSvg}</div>`;
+                            } else {
+                                // Renderiza os outros dados normalmente
+                                diceHtml += `<div>${dieSvg}</div>`;
+                            }
+                        });
+                    } else {
+                        // Os dados de quem não perdeu são renderizados normalmente
+                        diceHtml = diceArray.map(d => `<div>${diceSVGTags[d]}</div>`).join(' ');
+                    }
+
+                    const containerClasses = isLoser
+                        ? 'mb-2 p-2 rounded-lg bg-red-200 border border-red-300 shadow-inner'
+                        : 'mb-2 p-2';
+
+                    allDiceReveal.innerHTML += `<div class="${containerClasses}"><p class="font-semibold">${playerEmail}:</p><div class="flex justify-center gap-2">${diceHtml}</div></div>`;
                 }
 
                 // Apenas exibe o botão "Próxima Rodada" para o anfitrião da sala
@@ -1572,18 +1618,19 @@
             let roundMessage = '';
             let loserForNextRound = bidderId; // O jogador que aposta sempre começa a próxima rodada
 
+            let losers = [];
             if (bidWasExact) {
                 // O jogador acertou, todos os outros perdem um dado
                 roundMessage = `${presences[bidderId]?.[0].email.split('@')[0]} CRAVOU! Havia exatamente ${actualQuantity} dados de face ${currentBid.face}. Todos os outros jogadores perdem um dado.`;
-                for (const playerId in updatedPlayers) {
-                    if (playerId !== bidderId) {
-                        updatedPlayers[playerId].diceCount = Math.max(0, updatedPlayers[playerId].diceCount - 1);
-                    }
+                losers = Object.keys(updatedPlayers).filter(id => id !== bidderId);
+                for (const loserId of losers) {
+                    updatedPlayers[loserId].diceCount = Math.max(0, updatedPlayers[loserId].diceCount - 1);
                 }
                 // O próximo a jogar é o que deu o lance (bidderId)
                 loserForNextRound = bidderId;
             } else {
                 // O jogador errou e perde um dado
+                losers = [bidderId];
                 updatedPlayers[bidderId].diceCount = Math.max(0, updatedPlayers[bidderId].diceCount - 1);
                 roundMessage = `${presences[bidderId]?.[0].email.split('@')[0]} errou! Havia ${actualQuantity} dados de face ${currentBid.face}, não ${currentBid.quantity}. Ele perde um dado.`;
                 // O próximo a jogar é o perdedor do lance (bidderId)
@@ -1604,7 +1651,8 @@
                     reveal: true,
                     bidder: bidderId,
                     challenger: null, // Não há desafiante neste caso
-                    loser: loserForNextRound,
+                    loser: loserForNextRound, // Mantém para o início da próxima rodada
+                    losers: losers, // Array com todos os perdedores da rodada
                     actualQuantity: actualQuantity,
                     message: roundMessage,
                     allDice: allDice,
@@ -1650,6 +1698,7 @@
                     bidder: lastBidder,
                     challenger: challenger,
                     loser: loser,
+                    losers: [loser], // Array com o perdedor da rodada
                     actualQuantity: actualQuantity,
                     message: roundMessage,
                     allDice: allDice // Inclui todos os dados para a revelação

@@ -238,8 +238,9 @@
             <div id="game-view" class="hidden h-full w-full relative bg-gray-100">
                 
                 <!-- A. Barra do Topo (FIXA NO TOPO) -->
-                <div id="top-bar" class="fixed top-0 left-0 w-full p-4 bg-gray-900 text-white border-b border-gray-700 shadow-lg z-30 flex justify-center items-center h-16">
-                    <div id="turn-info" class="text-xl font-bold"></div>
+                <div id="top-bar" class="fixed top-0 left-0 w-full p-4 bg-gray-900 text-white border-b border-gray-700 shadow-lg z-30 flex justify-between items-center h-16">
+                    <div id="turn-info" class="text-xl font-bold truncate"></div>
+                    <div class="w-6 h-6"></div> <!-- Spacer for settings button -->
                 </div>
 
                 <!-- B. Histórico de Jogadas (ÁREA SCROLLÁVEL NO MEIO) -->
@@ -749,7 +750,12 @@
             }
 
             // 3. Atualiza a Barra do Topo
-            document.getElementById('turn-info').textContent = gameState.currentTurnMessage || '';
+            const turnInfo = document.getElementById('turn-info');
+            if (currentUser.id === gameState.currentPlayer) {
+                turnInfo.textContent = 'É a sua vez';
+            } else {
+                turnInfo.textContent = gameState.currentTurnMessage || '';
+            }
 
             // 4. Atualiza o Histórico de Jogadas (Chat-like)
             historyMessages.innerHTML = '';
@@ -1825,7 +1831,7 @@
             setCurrentRoomChannel: (channel) => currentRoomChannel = channel,
             setGameStarted: (started) => gameStarted = started,
             setGameState: (state) => gameState = state,
-            setPresences: (p) => presences = p,
+            setPresences: (p) => presences = p, getGameState: () => gameState,
             renderRoomUI: () => renderRoomUI(),
             renderGameUI: () => renderGameUI(),
             showView: (viewId) => showView(viewId),

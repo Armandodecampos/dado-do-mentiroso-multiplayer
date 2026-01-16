@@ -243,28 +243,16 @@
                     <div class="w-6 h-6"></div> <!-- Spacer for settings button -->
                 </div>
 
-                <!-- B. Histórico de Jogadas (ÁREA SCROLLÁVEL NO MEIO) -->
-                <!-- pt-16 (altura do topo) e pb-[280px] (altura estimada do rodapé fixo) -->
-                <div id="history-container" class="absolute inset-0 pt-20 pb-[280px] overflow-y-auto w-full px-4">
+                <!-- B. Histórico de Jogadas e Ações (ÁREA SCROLLÁVEL NO MEIO) -->
+                <!-- pt-16 (altura do topo) e pb-[120px] (altura do rodapé de dados) -->
+                <div id="history-container" class="absolute inset-0 pt-20 pb-[120px] overflow-y-auto w-full px-4">
                     <!-- Adicionado border-l-4 para criar a barra vertical -->
                     <div id="history-messages" class="space-y-4 border-l-4 border-gray-300 ml-2 pl-4 min-h-full flex flex-col justify-end py-4">
                         <!-- Mensagens de Lance e Turno (Chat-like) vão aqui -->
                     </div>
-                </div>
-                
-                <!-- CONTAINER FIXO DO RODAPÉ (DADOS + AÇÕES) -->
-                <div id="bottom-panel" class="fixed bottom-0 left-0 w-full z-30 bg-gray-100 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)]">
-                    
-                    <!-- C. Área dos Dados do Jogador -->
-                    <div id="my-dice-area-container" class="p-4 bg-gray-200 border-t border-gray-300">
-                        <h3 class="font-bold mb-2 text-sm text-center">Seus Dados</h3>
-                        <div id="my-dice-display" class="flex justify-center items-center space-x-4 text-2xl h-10">
-                            <!-- Dados do Jogador (SVGs) -->
-                        </div>
-                    </div>
 
-                    <!-- D. Controles de Ação -->
-                    <div id="bottom-actions" class="p-4 bg-white border-t border-gray-300 pb-safe">
+                    <!-- D. Controles de Ação (MOVIMIDO PARA CÁ) -->
+                    <div id="bottom-actions" class="p-4 bg-white border-t border-gray-300 rounded-t-lg shadow-md mt-4">
                         
                         <!-- Formulário de Lance (Botões) -->
                         <div id="bid-container" class="flex items-center justify-center gap-4 mb-4">
@@ -299,6 +287,18 @@
                             <button id="bid-btn" class="flex-1 bg-green-800 text-white font-bold py-3 px-4 rounded-lg transition-transform transform hover:scale-105 shadow-md text-sm sm:text-base">Apostar</button>
                             <button id="challenge-btn" class="flex-1 bg-red-800 text-white font-bold py-3 px-4 rounded-lg transition-transform transform hover:scale-105 shadow-md text-sm sm:text-base" disabled>Duvidar</button>
                             <button id="exact-btn" class="flex-1 bg-black text-white font-bold py-3 px-4 rounded-lg transition-transform transform hover:scale-105 shadow-md text-sm sm:text-base" disabled>Confirmar</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- CONTAINER FIXO DO RODAPÉ (APENAS DADOS) -->
+                <div id="bottom-panel" class="fixed bottom-0 left-0 w-full z-30 bg-gray-100 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)]">
+
+                    <!-- C. Área dos Dados do Jogador -->
+                    <div id="my-dice-area-container" class="p-4 bg-gray-200 border-t border-gray-300">
+                        <h3 class="font-bold mb-2 text-sm text-center">Seus Dados</h3>
+                        <div id="my-dice-display" class="flex justify-center items-center space-x-4 text-2xl h-10">
+                            <!-- Dados do Jogador (SVGs) -->
                         </div>
                     </div>
                 </div>
@@ -831,8 +831,12 @@
                 });
             }
 
-            // 6. Habilita/desabilita ações
+            // 6. Habilita/desabilita e exibe/oculta ações
             const isMyTurn = currentUser.id === currentPlayer;
+            const bottomActions = document.getElementById('bottom-actions');
+
+            // Oculta completamente o painel de ações se não for a vez do jogador
+            bottomActions.classList.toggle('hidden', !isMyTurn);
 
             if (isMyTurn) {
                 // Se for a vez do jogador, reinicie a UI do lance para um valor válido.
@@ -846,22 +850,27 @@
                     currentBidInput.face = 1;
                 }
                 updateBidUI(); // Atualiza a exibição visual
-            }
 
-            bidBtn.disabled = !isMyTurn;
-            challengeBtn.disabled = !isMyTurn || !currentBid; // Só pode desafiar se houver um lance
-            exactBtn.disabled = !isMyTurn || !currentBid;
-            
-            // Visual feedback for disabled buttons
-            [bidBtn, challengeBtn, exactBtn].forEach(btn => {
-                if (btn.disabled) {
-                    btn.classList.add('opacity-50', 'cursor-not-allowed');
-                    btn.classList.remove('hover:scale-105', 'shadow-md');
-                } else {
-                    btn.classList.remove('opacity-50', 'cursor-not-allowed');
-                    btn.classList.add('hover:scale-105', 'shadow-md');
-                }
-            });
+                // Lógica de desabilitação específica para botões de desafio e exato
+                challengeBtn.disabled = !currentBid;
+                exactBtn.disabled = !currentBid;
+
+                // Atualiza o feedback visual para os botões que podem ser desabilitados
+                [challengeBtn, exactBtn].forEach(btn => {
+                    if (btn.disabled) {
+                        btn.classList.add('opacity-50', 'cursor-not-allowed');
+                        btn.classList.remove('hover:scale-105', 'shadow-md');
+                    } else {
+                        btn.classList.remove('opacity-50', 'cursor-not-allowed');
+                        btn.classList.add('hover:scale-105', 'shadow-md');
+                    }
+                });
+
+                // Garante que o contêiner de histórico role para baixo para mostrar os controles
+                setTimeout(() => {
+                    historyContainer.scrollTop = historyContainer.scrollHeight;
+                }, 100);
+            }
         }
 
         /**

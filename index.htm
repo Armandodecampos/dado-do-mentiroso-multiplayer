@@ -504,7 +504,6 @@
         const participantsList = document.getElementById('participants-list');
         const pageBody = document.getElementById('page-body');
         const mainContainer = document.getElementById('main-container');
-        const mainTitle = document.getElementById('main-title');
         const roomCodeTitle = document.getElementById('room-code-title');
         const participantsTitle = document.getElementById('participants-title');
         const lobbyWaitContent = document.getElementById('lobby-wait-content'); // Novo
@@ -563,10 +562,6 @@
         function showAuthMessage(message, isError = false) { authMessage.textContent = message; authMessage.className = `text-center text-sm mt-4 ${isError ? 'text-red-400' : 'text-green-400'}`; }
         function showLobbyMessage(message, isError = true) { lobbyMessage.textContent = message; lobbyMessage.className = `text-center text-sm mt-4 ${isError ? 'text-red-400' : 'text-green-400'}`; }
         function showView(viewId) {
-            // Oculta/mostra o título principal dependendo da view
-            const isUserLoggedIn = viewId === 'lobby-view' || viewId === 'room-view';
-            mainTitle.classList.toggle('hidden', viewId === 'room-view');
-
             ['auth-view', 'lobby-view', 'room-view'].forEach(id => document.getElementById(id).classList.add('hidden'));
             document.getElementById(viewId).classList.remove('hidden');
         }

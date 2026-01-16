@@ -240,6 +240,7 @@
                 <!-- A. Barra do Topo (FIXA NO TOPO) -->
                 <div id="top-bar" class="fixed top-0 left-0 w-full p-4 bg-gray-900 text-white border-b border-gray-700 shadow-lg z-30 flex justify-between items-center h-16">
                     <h2 class="text-xl font-bold">Rodada <span id="round-number">1</span></h2>
+                    <div id="turn-info" class="text-lg font-semibold"></div>
                 </div>
 
                 <!-- B. Histórico de Jogadas (ÁREA SCROLLÁVEL NO MEIO) -->
@@ -421,6 +422,7 @@
                 round: 1,
                 gameWinner: null,
                 bidHistory: [], // NOVO: Armazena o histórico de lances
+                currentTurnMessage: '',
                 roundInfo: {
                     reveal: false,
                     bidder: null,
@@ -661,7 +663,7 @@
                 playerIds.sort();
                 const newGameState = createInitialGameState(playerIds, playerIds[0]);
                 newGameState.turnOrder = playerIds;
-                newGameState.bidHistory.push({ type: 'turn', message: `É a vez de ${presences[newGameState.currentPlayer]?.[0].email}.` });
+                newGameState.currentTurnMessage = `É a vez de ${presences[newGameState.currentPlayer]?.[0].email}.`;
 
                 for (const playerId in newGameState.players) {
                     const player = newGameState.players[playerId];
@@ -744,6 +746,7 @@
 
             // 3. Atualiza a Barra do Topo
             roundNumberDisplay.textContent = round;
+            document.getElementById('turn-info').textContent = gameState.currentTurnMessage || '';
 
             // 4. Atualiza o Histórico de Jogadas (Chat-like)
             historyMessages.innerHTML = '';
@@ -919,7 +922,7 @@
                 if (nextPlayerId) {
                     updatedGameState.currentPlayer = nextPlayerId;
                     const nextPlayerEmail = presences[nextPlayerId]?.[0]?.email?.split('@')[0] || 'Próximo jogador';
-                    updatedGameState.bidHistory.push({ type: 'turn', message: `É a vez de ${nextPlayerEmail}.` });
+                    updatedGameState.currentTurnMessage = `É a vez de ${nextPlayerEmail}.`;
                 }
                 // Se nenhum jogador ativo for encontrado, a lógica de fim de jogo cuidará disso.
             }
@@ -1510,7 +1513,6 @@
             // Adiciona o lance ao histórico
             const newHistory = [...gameState.bidHistory];
             newHistory.push({ type: 'bid', playerId: currentUser.id, quantity, face });
-            newHistory.push({ type: 'turn', message: `É a vez de ${presences[nextPlayerId]?.[0].email.split('@')[0]}.`});
 
 
             // Atualiza o estado do jogo com o novo lance
@@ -1521,6 +1523,7 @@
                 currentPlayer: nextPlayerId,
                 turn: gameState.turn + 1,
                 bidHistory: newHistory, // Atualiza o histórico
+                currentTurnMessage: `É a vez de ${presences[nextPlayerId]?.[0].email.split('@')[0]}.`
             };
 
             // Atualiza e transmite o estado
@@ -1688,7 +1691,9 @@
                 bidHistory: [], // Limpa o histórico de lances para a nova rodada
             };
             
-            nextRoundState.bidHistory.push({ type: 'turn', message: `Rodada ${nextRoundState.round} começou! É a vez de ${presences[nextRoundState.currentPlayer]?.[0].email.split('@')[0]}.`});
+            nextRoundState.currentTurnMessage = `É a vez de ${presences[nextRoundState.currentPlayer]?.[0].email.split('@')[0]}.`;
+            nextRoundState.bidHistory.push({ type: 'status', message: `Rodada ${nextRoundState.round} começou!`});
+
 
             // Rola novos dados para os jogadores restantes
             for (const playerId in nextRoundState.players) {

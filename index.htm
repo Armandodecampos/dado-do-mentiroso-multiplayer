@@ -133,8 +133,10 @@
             <div class="loader ease-linear rounded-full border-8 border-t-8 border-gray-200 h-24 w-24"></div>
         </div>
 
-        <!-- Título -->
-        <h1 id="main-title" class="text-3xl font-bold text-center mb-6 text-black">Dado do Mentiroso</h1>
+        <!-- Logo -->
+        <div class="flex justify-center mb-6">
+            <img src="https://dl.dropbox.com/scl/fi/7j83mrl4cq08in40vydgc/logo-dado-do-mentiroso.png?rlkey=geqv8viwmppni2kzljtp636i8&st=cofqii6v&dl=0" alt="Logo do Jogo" class="w-48">
+        </div>
 
         <!-- #1: View de Autenticação -->
         <div id="auth-view">
@@ -954,12 +956,30 @@
             const leavingEmail = presences[leavingPlayerId]?.[0]?.email?.split('@')[0] || 'Um jogador';
             updatedGameState.bidHistory.push({ type: 'status', message: `${leavingEmail} saiu do jogo.` });
 
-            // 3. Verifica IMEDIATAMENTE se o jogo deve terminar.
+            // 3. Verifica se o jogo deve terminar e se há um vencedor.
             if (updatedGameState.turnOrder.length < 2) {
+                const winnerId = updatedGameState.turnOrder.length === 1 ? updatedGameState.turnOrder[0] : null;
+
+                // Prepara o estado final do jogo com o vencedor
+                const finalGameState = {
+                    ...updatedGameState,
+                    gameWinner: winnerId,
+                };
+
+                // Adiciona mensagem de status sobre a vitória
+                if (winnerId) {
+                    const winnerEmail = presences[winnerId]?.[0]?.email?.split('@')[0] || 'O último jogador';
+                    finalGameState.bidHistory.push({ type: 'status', message: `Fim do Jogo! ${winnerEmail} venceu.` });
+                } else {
+                    finalGameState.bidHistory.push({ type: 'status', message: `Fim do Jogo! Não há jogadores suficientes.` });
+                }
+
                 // Atualiza o DB para permitir que novos jogadores entrem.
                 await sb.from('rooms').update({ game_started: false }).eq('room_code', currentRoom.room_code);
-                // Transmite o fim do jogo, limpando o estado para todos.
-                await updateAndBroadcastGameState(null, false, 'not_enough_players');
+
+                // Transmite o fim do jogo com o estado final (que inclui o vencedor).
+                // O segundo argumento `false` indica que o jogo não está mais "iniciado".
+                await updateAndBroadcastGameState(finalGameState, false, winnerId ? 'winner_declared' : 'not_enough_players');
                 return; // Encerra a função aqui.
             }
 

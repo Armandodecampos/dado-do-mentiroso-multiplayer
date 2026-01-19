@@ -722,8 +722,7 @@
                 playerIds.sort();
                 const newGameState = createInitialGameState(playerIds, playerIds[0]);
                 newGameState.turnOrder = playerIds;
-                 const firstPlayerName = presences[newGameState.currentPlayer]?.[0]?.name || presences[newGameState.currentPlayer]?.[0]?.email;
-                newGameState.currentTurnMessage = `É a vez de ${firstPlayerName}.`;
+                newGameState.currentTurnMessage = `É a vez de ${presences[newGameState.currentPlayer]?.[0].name}.`;
 
                 for (const playerId in newGameState.players) {
                     const player = newGameState.players[playerId];
@@ -1090,29 +1089,26 @@
         }
 
         // --- 5. LÓGICA DE AUTENTICAÇÃO ---
-        function setActiveTab(tabName) {
-            if (tabName === 'login') {
-                loginForm.classList.remove('hidden');
-                signupForm.classList.add('hidden');
-                resetPasswordForm.classList.add('hidden');
-                tabLogin.classList.remove('text-opacity-60', 'border-transparent');
-                tabLogin.classList.add('border-[#4a2c2a]');
-                tabSignup.classList.add('text-opacity-60', 'border-transparent');
-                tabSignup.classList.remove('border-[#4a2c2a]');
-            } else if (tabName === 'signup') {
-                signupForm.classList.remove('hidden');
-                loginForm.classList.add('hidden');
-                resetPasswordForm.classList.add('hidden');
-                tabSignup.classList.remove('text-opacity-60', 'border-transparent');
-                tabSignup.classList.add('border-[#4a2c2a]');
-                tabLogin.classList.add('text-opacity-60', 'border-transparent');
-                tabLogin.classList.remove('border-[#4a2c2a]');
-            }
-             authMessage.textContent = '';
-        }
-
-        tabLogin.addEventListener('click', () => setActiveTab('login'));
-        tabSignup.addEventListener('click', () => setActiveTab('signup'));
+        tabLogin.addEventListener('click', () => {
+            loginForm.classList.remove('hidden');
+            signupForm.classList.add('hidden');
+            resetPasswordForm.classList.add('hidden');
+            tabLogin.classList.remove('text-opacity-60', 'border-transparent');
+            tabLogin.classList.add('border-[#4a2c2a]');
+            tabSignup.classList.add('text-opacity-60', 'border-transparent');
+            tabSignup.classList.remove('border-[#4a2c2a]');
+            authMessage.textContent = '';
+        });
+        tabSignup.addEventListener('click', () => {
+            signupForm.classList.remove('hidden');
+            loginForm.classList.add('hidden');
+            resetPasswordForm.classList.add('hidden');
+            tabSignup.classList.remove('text-opacity-60', 'border-transparent');
+            tabSignup.classList.add('border-[#4a2c2a]');
+            tabLogin.classList.add('text-opacity-60', 'border-transparent');
+            tabLogin.classList.remove('border-[#4a2c2a]');
+            authMessage.textContent = '';
+        });
 
         forgotPasswordLink.addEventListener('click', (e) => {
             e.preventDefault();

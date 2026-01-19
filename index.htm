@@ -6,16 +6,16 @@
     <title>Dado do Mentiroso - Supabase</title>
     <!-- Carrega o Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Carrega a fonte Inter do Google Fonts -->
+    <!-- Carrega as fontes do Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=IM+Fell+English+SC&family=Cinzel+Decorative:wght@700&display=swap" rel="stylesheet">
     <!-- Carrega o cliente Supabase -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         /* Estilo para o spinner de carregamento */
         .loader {
-            border-top-color: #3498db;
+            border-top-color: #e5a938; /* Cor de ouro para o spinner */
             -webkit-animation: spin 1s linear infinite;
             animation: spin 1s linear infinite;
         }
@@ -62,23 +62,26 @@
             animation: dice-explode 0.6s ease-in-out forwards;
         }
         body {
-            font-family: 'Inter', sans-serif;
+            font-family: 'IM Fell English SC', serif;
         }
-        /* Personalização da barra de rolagem para ficar mais sutil */
+        .font-title {
+            font-family: 'Cinzel Decorative', cursive;
+        }
+        /* Personalização da barra de rolagem para um visual mais rústico */
         #history-container::-webkit-scrollbar {
-            width: 6px;
+            width: 8px;
         }
         #history-container::-webkit-scrollbar-track {
-            background: #f1f1f1;
+            background: #4a2c2a; /* Marrom escuro para a trilha */
         }
         #history-container::-webkit-scrollbar-thumb {
-            background: #cbd5e1;
-            border-radius: 3px;
+            background: #e5a938; /* Dourado para o polegar */
+            border-radius: 4px;
+            border: 1px solid #4a2c2a;
         }
     </style>
 </head>
-<body id="page-body" class="bg-gray-50 text-black flex items-center justify-center min-h-screen">
-
+<body id="page-body" class="bg-[#3d2323] text-[#f3e9d2] flex items-center justify-center min-h-screen">
 
     <!-- SVG Definitions for Dice -->
     <svg width="0" height="0" style="position:absolute">
@@ -126,75 +129,75 @@
     </svg>
 
     <!-- Container Principal (Aplica-se a Lobby e Auth) -->
-    <div id="main-container" class="w-full max-w-md p-10 bg-white border border-gray-200 rounded-lg shadow-xl relative">
+    <div id="main-container" class="w-full max-w-md p-10 bg-[#f3e9d2] border-4 border-[#4a2c2a] rounded-lg shadow-xl relative">
 
         <!-- Overlay de Carregamento -->
-        <div id="loading-overlay" class="absolute inset-0 bg-gray-100 bg-opacity-75 flex items-center justify-center rounded-lg z-50 hidden">
-            <div class="loader ease-linear rounded-full border-8 border-t-8 border-gray-200 h-24 w-24"></div>
+        <div id="loading-overlay" class="absolute inset-0 bg-[#f3e9d2] bg-opacity-75 flex items-center justify-center rounded-lg z-50 hidden">
+            <div class="loader ease-linear rounded-full border-8 border-t-8 border-[#4a2c2a] h-24 w-24"></div>
         </div>
 
         <!-- Logo -->
         <div id="logo-container" class="flex justify-center mb-6">
-            <img src="https://dl.dropbox.com/scl/fi/7j83mrl4cq08in40vydgc/logo-dado-do-mentiroso.png?rlkey=geqv8viwmppni2kzljtp636i8&st=cofqii6v&dl=0" alt="Logo do Jogo" class="w-64">
+            <h1 class="text-5xl font-bold text-[#4a2c2a] font-title">Dado do Mentiroso</h1>
         </div>
 
         <!-- #1: View de Autenticação -->
-        <div id="auth-view">
+        <div id="auth-view" class="text-[#4a2c2a]">
             <!-- Abas de Login / Cadastro -->
-            <div id="auth-tabs-container" class="flex mb-4 border-b border-gray-300">
-                <button id="tab-login" class="flex-1 py-2 text-center font-medium text-black border-b-2 border-black">Login</button>
-                <button id="tab-signup" class="flex-1 py-2 text-center font-medium text-gray-500">Cadastrar</button>
+            <div id="auth-tabs-container" class="flex mb-4 border-b-2 border-[#4a2c2a]">
+                <button id="tab-login" class="flex-1 py-2 text-center font-bold border-b-4 border-[#4a2c2a]">Login</button>
+                <button id="tab-signup" class="flex-1 py-2 text-center font-bold text-opacity-60">Cadastrar</button>
             </div>
 
             <!-- Formulário de Login -->
             <form id="login-form">
                 <div class="mb-4">
-                    <label for="login-email" class="block text-sm font-medium text-gray-700 mb-2">Email</label>
-                    <input type="email" id="login-email" required class="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg text-black focus:outline-none focus:ring-2 focus:ring-black" placeholder="voce@email.com">
+                    <label for="login-email" class="block text-sm font-bold mb-2">Email</label>
+                    <input type="email" id="login-email" required class="w-full px-3 py-2 bg-[#f3e9d2] border-2 border-[#4a2c2a] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#e5a938]" placeholder="voce@email.com">
                 </div>
                 <div class="mb-6">
-                    <label for="login-password" class="block text-sm font-medium text-gray-700 mb-2">Senha</label>
-                    <input type="password" id="login-password" required class="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg text-black focus:outline-none focus:ring-2 focus:ring-black" placeholder="••••••••">
+                    <label for="login-password" class="block text-sm font-bold mb-2">Senha</label>
+                    <input type="password" id="login-password" required class="w-full px-3 py-2 bg-[#f3e9d2] border-2 border-[#4a2c2a] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#e5a938]" placeholder="••••••••">
                 </div>
-                <button type="submit" class="w-full bg-black text-white font-bold py-3 px-4 rounded-lg transition-transform transform hover:scale-105 shadow-md">Entrar</button>
+                <button type="submit" class="w-full bg-[#003366] text-white font-bold py-3 px-4 rounded-lg transition-transform transform hover:scale-105 shadow-md border-b-4 border-[#001a33]">Entrar</button>
                 <div class="text-center mt-4">
-                    <a href="#" id="forgot-password-link" class="text-sm text-gray-600 hover:text-black">Esqueci minha senha</a>
+                    <a href="#" id="forgot-password-link" class="text-sm text-opacity-80 hover:text-opacity-100">Esqueci minha senha</a>
                 </div>
             </form>
 
             <!-- Formulário de Cadastro (escondido por padrão) -->
             <form id="signup-form" class="hidden">
                 <div class="mb-4">
-                    <label for="signup-email" class="block text-sm font-medium text-gray-700 mb-2">Email</label>
-                    <input type="email" id="signup-email" required class="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg text-black focus:outline-none focus:ring-2 focus:ring-black" placeholder="voce@email.com">
+                    <label for="signup-email" class="block text-sm font-bold mb-2">Email</label>
+                    <input type="email" id="signup-email" required class="w-full px-3 py-2 bg-[#f3e9d2] border-2 border-[#4a2c2a] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#e5a938]" placeholder="voce@email.com">
                 </div>
                 <div class="mb-6">
-                    <label for="signup-password" class="block text-sm font-medium text-gray-700 mb-2">Senha</label>
-                    <input type="password" id="signup-password" required class="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg text-black focus:outline-none focus:ring-2 focus:ring-black" placeholder="Mínimo 6 caracteres">
+                    <label for="signup-password" class="block text-sm font-bold mb-2">Senha</label>
+                    <input type="password" id="signup-password" required class="w-full px-3 py-2 bg-[#f3e9d2] border-2 border-[#4a2c2a] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#e5a938]" placeholder="Mínimo 6 caracteres">
                 </div>
-                <button type="submit" class="w-full bg-black text-white font-bold py-3 px-4 rounded-lg transition-transform transform hover:scale-105 shadow-md">Criar Conta</button>
+                <button type="submit" class="w-full bg-[#003366] text-white font-bold py-3 px-4 rounded-lg transition-transform transform hover:scale-105 shadow-md border-b-4 border-[#001a33]">Criar Conta</button>
             </form>
 
             <!-- Formulário de Recuperação de Senha (escondido por padrão) -->
             <form id="reset-password-form" class="hidden">
                 <div class="mb-4">
-                    <label for="reset-email" class="block text-sm font-medium text-gray-700 mb-2">Email</label>
-                    <input type="email" id="reset-email" required class="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg text-black focus:outline-none focus:ring-2 focus:ring-black" placeholder="voce@email.com">
+                    <label for="reset-email" class="block text-sm font-bold mb-2">Email</label>
+                    <input type="email" id="reset-email" required class="w-full px-3 py-2 bg-[#f3e9d2] border-2 border-[#4a2c2a] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#e5a938]" placeholder="voce@email.com">
                 </div>
-                <button type="submit" class="w-full bg-black text-white font-bold py-3 px-4 rounded-lg transition-transform transform hover:scale-105 shadow-md">Enviar Link de Recuperação</button>
+                <button type="submit" class="w-full bg-[#003366] text-white font-bold py-3 px-4 rounded-lg transition-transform transform hover:scale-105 shadow-md border-b-4 border-[#001a33]">Enviar Link de Recuperação</button>
                  <div class="text-center mt-4">
-                    <a href="#" id="back-to-login-link" class="text-sm text-gray-600 hover:text-black">Voltar para o Login</a>
+                    <a href="#" id="back-to-login-link" class="text-sm text-opacity-80 hover:text-opacity-100">Voltar para o Login</a>
                 </div>
             </form>
 
             <!-- Formulário de Atualização de Senha (escondido por padrão) -->
             <form id="update-password-form" class="hidden">
-                <p class="text-center text-gray-700 mb-4">Defina sua nova senha.</p>
+                <p class="text-center mb-4">Defina sua nova senha.</p>
                 <div class="mb-6">
-                    <label for="update-password" class="block text-sm font-medium text-gray-700 mb-2">Nova Senha</label>
-                    <input type="password" id="update-password" required class="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg text-black focus:outline-none focus:ring-2 focus:ring-black" placeholder="••••••••">
+                    <label for="update-password" class="block text-sm font-bold mb-2">Nova Senha</label>
+                    <input type="password" id="update-password" required class="w-full px-3 py-2 bg-[#f3e9d2] border-2 border-[#4a2c2a] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#e5a938]" placeholder="••••••••">
                 </div>
-                <button type="submit" class="w-full bg-black text-white font-bold py-3 px-4 rounded-lg transition-transform transform hover:scale-105 shadow-md">Atualizar Senha</button>
+                <button type="submit" class="w-full bg-[#003366] text-white font-bold py-3 px-4 rounded-lg transition-transform transform hover:scale-105 shadow-md border-b-4 border-[#001a33]">Atualizar Senha</button>
             </form>
 
             <!-- Mensagens de Auth -->
@@ -202,37 +205,37 @@
         </div>
 
         <!-- #2: View do Lobby (Logado) -->
-        <div id="lobby-view" class="hidden">
-            <p id="welcome-message" class="text-center text-lg mb-6"></p>
+        <div id="lobby-view" class="hidden text-[#4a2c2a]">
+            <p id="welcome-message" class="text-center text-lg mb-6 font-bold"></p>
 
             <!-- Criar Sala -->
-            <button id="create-room-btn" class="w-full bg-black text-white font-bold py-3 px-4 rounded-lg transition-transform transform hover:scale-105 shadow-md mb-6">
+            <button id="create-room-btn" class="w-full bg-[#003366] text-white font-bold py-3 px-4 rounded-lg transition-transform transform hover:scale-105 shadow-md mb-6 border-b-4 border-[#001a33]">
                 Criar Nova Sala
             </button>
 
             <!-- Entrar na Sala -->
             <form id="join-room-form">
-                <label for="room-code-input" class="block text-sm font-medium text-gray-700 mb-2">Entrar em uma Sala</label>
+                <label for="room-code-input" class="block text-sm font-bold mb-2">Entrar em uma Sala</label>
                 <div class="flex">
-                    <input type="text" id="room-code-input" required class="flex-1 px-3 py-2 bg-white border border-gray-300 rounded-l-lg text-black focus:outline-none focus:ring-2 focus:ring-black" placeholder="Digite o código">
-                    <button type="submit" class="bg-black text-white font-bold py-2 px-4 rounded-r-lg transition-transform transform hover:scale-105">Entrar</button>
+                    <input type="text" id="room-code-input" required class="flex-1 px-3 py-2 bg-[#f3e9d2] border-2 border-[#4a2c2a] rounded-l-lg focus:outline-none focus:ring-2 focus:ring-[#e5a938]" placeholder="Digite o código">
+                    <button type="submit" class="bg-[#003366] text-white font-bold py-2 px-4 rounded-r-lg transition-transform transform hover:scale-105 border-b-4 border-t-2 border-r-2 border-[#001a33]">Entrar</button>
                 </div>
             </form>
-            <p id="lobby-message" class="text-center text-red-500 text-sm mt-4"></p>
+            <p id="lobby-message" class="text-center text-red-700 text-sm mt-4"></p>
 
             <!-- Logout -->
-            <button id="logout-btn" class="w-full mt-8 text-gray-500 hover:text-red-500 text-sm transition duration-300">Sair</button>
+            <button id="logout-btn" class="w-full mt-8 text-red-800 hover:text-red-600 text-sm transition duration-300 font-bold">Sair</button>
         </div>
 
         <!-- O CONTEÚDO DA SALA ABAIXO É REESTRUTURADO PARA O NOVO LAYOUT DE TELA CHEIA/JOGO -->
 
         <!-- #3: View da Sala (Dentro da Sala) -->
         <!-- "fixed" logic is handled inside game-view. room-view acts as a wrapper. -->
-        <div id="room-view" class="hidden relative h-full flex flex-col"> 
+        <div id="room-view" class="hidden relative h-full flex flex-col text-[#f3e9d2]">
             
             <!-- Botão de Engrenagem (Configurações) - Mantido fixo -->
-            <button id="settings-btn" class="fixed top-4 right-4 text-gray-500 hover:text-black transition duration-300 z-50">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <button id="settings-btn" class="fixed top-4 right-4 text-[#e5a938] hover:text-white transition duration-300 z-50">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                 </svg>
@@ -240,27 +243,27 @@
             
             <!-- CONTEÚDO DO LOBBY (VISÍVEL ANTES DE INICIAR O JOGO) -->
             <div id="lobby-wait-content" class="flex-1 p-4 overflow-y-auto">
-                <h2 id="room-code-title" class="text-2xl font-bold text-center mb-4">Código da Sala:</h2>
-                <p id="room-code-display" class="text-4xl font-mono font-bold text-center text-black bg-gray-200 rounded-lg py-4 mb-6"></p>
+                <h2 id="room-code-title" class="text-3xl text-center mb-4 font-title text-[#e5a938]">Código da Sala:</h2>
+                <p id="room-code-display" class="text-5xl font-mono font-bold text-center text-[#4a2c2a] bg-[#f3e9d2] rounded-lg py-4 mb-6 border-4 border-[#4a2c2a]"></p>
 
-                <h3 id="participants-title" class="text-lg font-semibold text-gray-700 mb-3">Quem está na sala:</h3>
-                <ul id="participants-list" class="list-disc list-inside bg-gray-200 p-4 rounded-lg min-h-[120px] text-gray-800 space-y-1">
+                <h3 id="participants-title" class="text-2xl font-bold text-[#e5a938] mb-3">Quem está na sala:</h3>
+                <ul id="participants-list" class="list-none list-inside bg-[#4a2c2a] bg-opacity-50 p-4 rounded-lg min-h-[120px] space-y-2 border-2 border-[#e5a938]">
                     <!-- Lista de participantes aparecerá aqui -->
                 </ul>
 
                 <!-- Controles do Jogo (Apenas para o Anfitrião) -->
                 <div id="game-controls" class="mt-6"></div>
                 
-                <button id="leave-room-btn" class="w-full bg-gray-200 text-black font-bold py-3 px-4 rounded-lg transition-transform transform hover:scale-105 shadow-md mt-6">Voltar ao Lobby</button>
+                <button id="leave-room-btn" class="w-full bg-[#f3e9d2] text-[#4a2c2a] font-bold py-3 px-4 rounded-lg transition-transform transform hover:scale-105 shadow-md mt-6 border-b-4 border-[#c7b393]">Voltar ao Lobby</button>
             </div>
             
             <!-- TELA DO JOGO (VISÍVEL APÓS INICIAR O JOGO) -->
             <!-- Alterado para relativo e w-full para conter os elementos fixed corretamente -->
-            <div id="game-view" class="hidden h-full w-full relative bg-gray-100">
+            <div id="game-view" class="hidden h-full w-full relative bg-[#3d2323]">
                 
                 <!-- A. Barra do Topo (FIXA NO TOPO) -->
-                <div id="top-bar" class="fixed top-0 left-0 w-full p-4 bg-gray-900 text-white border-b border-gray-700 shadow-lg z-30 flex justify-between items-center h-16">
-                    <div id="turn-info" class="text-xl font-bold truncate"></div>
+                <div id="top-bar" class="fixed top-0 left-0 w-full p-4 bg-[#4a2c2a] text-[#f3e9d2] border-b-4 border-[#e5a938] shadow-lg z-30 flex justify-between items-center h-16">
+                    <div id="turn-info" class="text-2xl font-bold truncate font-title"></div>
                     <div class="w-6 h-6"></div> <!-- Spacer for settings button -->
                 </div>
 
@@ -268,56 +271,56 @@
                 <!-- pt-16 (altura do topo) e pb-[120px] (altura do rodapé de dados) -->
                 <div id="history-container" class="absolute inset-0 pt-20 pb-[120px] overflow-y-auto w-full px-4">
                     <!-- Adicionado border-l-4 para criar a barra vertical -->
-                    <div id="history-messages" class="space-y-4 border-l-4 border-gray-300 ml-2 pl-4 min-h-full flex flex-col justify-end py-4">
+                    <div id="history-messages" class="space-y-4 border-l-4 border-[#e5a938] ml-2 pl-4 min-h-full flex flex-col justify-end py-4">
                         <!-- Mensagens de Lance e Turno (Chat-like) vão aqui -->
                     </div>
 
                     <!-- D. Controles de Ação (MOVIMIDO PARA CÁ) -->
-                    <div id="bottom-actions" class="p-4 bg-white border-t border-gray-300 rounded-t-lg shadow-md mt-4">
+                    <div id="bottom-actions" class="p-4 bg-[#f3e9d2] text-[#4a2c2a] border-t-4 border-[#4a2c2a] rounded-t-lg shadow-md mt-4">
                         
                         <!-- Formulário de Lance (Botões) -->
                         <div id="bid-container" class="flex items-center justify-center gap-4 mb-4">
                             <!-- Seletor de Quantidade -->
                             <div class="flex items-center gap-2">
-                                <button id="decrease-quantity-btn" class="px-3 py-1 bg-gray-200 text-black rounded-md font-bold text-lg">-</button>
+                                <button id="decrease-quantity-btn" class="px-3 py-1 bg-[#c7b393] rounded-md font-bold text-lg border-b-2 border-[#a1886c]">-</button>
                                 <div class="flex flex-col items-center">
-                                    <span class="text-sm text-gray-500">Dados</span>
+                                    <span class="text-sm">Dados</span>
                                     <span id="bid-quantity-display" class="w-12 text-center font-bold text-2xl">1</span>
                                 </div>
-                                <button id="increase-quantity-btn" class="px-3 py-1 bg-gray-200 text-black rounded-md font-bold text-lg">+</button>
+                                <button id="increase-quantity-btn" class="px-3 py-1 bg-[#c7b393] rounded-md font-bold text-lg border-b-2 border-[#a1886c]">+</button>
                             </div>
 
                             <!-- Separador Visual -->
-                            <div class="border-l h-10 border-gray-300"></div>
+                            <div class="border-l h-10 border-[#4a2c2a]"></div>
 
                             <!-- Seletor de Face -->
                             <div class="flex items-center gap-2">
-                                <button id="decrease-face-btn" class="px-3 py-1 bg-gray-200 text-black rounded-md font-bold text-lg">-</button>
+                                <button id="decrease-face-btn" class="px-3 py-1 bg-[#c7b393] rounded-md font-bold text-lg border-b-2 border-[#a1886c]">-</button>
                                 <div class="flex flex-col items-center">
-                                    <span class="text-sm text-gray-500">Face</span>
+                                    <span class="text-sm">Face</span>
                                     <div id="bid-face-display" class="w-12 h-12 flex items-center justify-center">
                                         <svg class="w-10 h-10"><use href="#dice-1"></use></svg>
                                     </div>
                                 </div>
-                                <button id="increase-face-btn" class="px-3 py-1 bg-gray-200 text-black rounded-md font-bold text-lg">+</button>
+                                <button id="increase-face-btn" class="px-3 py-1 bg-[#c7b393] rounded-md font-bold text-lg border-b-2 border-[#a1886c]">+</button>
                             </div>
                         </div>
 
                         <!-- Botões de Ações -->
                         <div class="flex gap-2">
-                            <button id="bid-btn" class="flex-1 bg-green-800 text-white font-bold py-3 px-4 rounded-lg transition-transform transform hover:scale-105 shadow-md text-sm sm:text-base">Apostar</button>
-                            <button id="challenge-btn" class="flex-1 bg-red-800 text-white font-bold py-3 px-4 rounded-lg transition-transform transform hover:scale-105 shadow-md text-sm sm:text-base" disabled>Duvidar</button>
-                            <button id="exact-btn" class="flex-1 bg-black text-white font-bold py-3 px-4 rounded-lg transition-transform transform hover:scale-105 shadow-md text-sm sm:text-base" disabled>Confirmar</button>
+                            <button id="bid-btn" class="flex-1 bg-[#003366] text-white font-bold py-3 px-4 rounded-lg transition-transform transform hover:scale-105 shadow-md text-sm sm:text-base border-b-4 border-[#001a33]">Apostar</button>
+                            <button id="challenge-btn" class="flex-1 bg-[#990000] text-white font-bold py-3 px-4 rounded-lg transition-transform transform hover:scale-105 shadow-md text-sm sm:text-base border-b-4 border-[#660000]" disabled>Duvidar</button>
+                            <button id="exact-btn" class="flex-1 bg-[#4a2c2a] text-white font-bold py-3 px-4 rounded-lg transition-transform transform hover:scale-105 shadow-md text-sm sm:text-base border-b-4 border-[#2c1a1a]" disabled>Confirmar</button>
                         </div>
                     </div>
                 </div>
 
                 <!-- CONTAINER FIXO DO RODAPÉ (APENAS DADOS) -->
-                <div id="bottom-panel" class="fixed bottom-0 left-0 w-full z-30 bg-gray-900 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)]">
+                <div id="bottom-panel" class="fixed bottom-0 left-0 w-full z-30 bg-[#4a2c2a] shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)]">
 
                     <!-- C. Área dos Dados do Jogador -->
-                    <div id="my-dice-area-container" class="p-4 bg-gray-900 border-t border-gray-700">
-                        <h3 class="font-bold mb-2 text-sm text-center text-white">Seus Dados</h3>
+                    <div id="my-dice-area-container" class="p-4 bg-[#4a2c2a] border-t-4 border-[#e5a938]">
+                        <h3 class="font-bold mb-2 text-sm text-center text-[#f3e9d2] font-title">Seus Dados</h3>
                         <div id="my-dice-display" class="flex justify-center items-center space-x-4 text-2xl h-10">
                             <!-- Dados do Jogador (SVGs) -->
                         </div>
@@ -325,29 +328,29 @@
                 </div>
 
                 <!-- Overlay de Resultado da Rodada (REDESENHADO) -->
-                <div id="round-result-overlay" class="absolute inset-0 bg-gray-900 bg-opacity-95 flex flex-col items-center justify-center hidden p-4 z-50 text-white">
-                    <div class="bg-gray-800 p-8 rounded-2xl shadow-2xl w-full max-w-lg text-center border-t-4 border-yellow-400">
-                        <h2 class="text-3xl font-extrabold text-yellow-400 mb-2">Resultado da Rodada</h2>
-                        <p id="round-result-message" class="text-lg text-gray-300 mb-6"></p>
-                        <div id="all-dice-reveal" class="mb-6 p-4 rounded-lg bg-gray-700 max-h-64 overflow-y-auto w-full space-y-3">
+                <div id="round-result-overlay" class="absolute inset-0 bg-[#3d2323] bg-opacity-95 flex flex-col items-center justify-center hidden p-4 z-50 text-[#f3e9d2]">
+                    <div class="bg-[#4a2c2a] p-8 rounded-2xl shadow-2xl w-full max-w-lg text-center border-t-8 border-b-8 border-[#e5a938]">
+                        <h2 class="text-4xl font-extrabold text-[#e5a938] mb-2 font-title">Resultado da Rodada</h2>
+                        <p id="round-result-message" class="text-lg mb-6"></p>
+                        <div id="all-dice-reveal" class="mb-6 p-4 rounded-lg bg-[#3d2323] max-h-64 overflow-y-auto w-full space-y-3">
                             <!-- Dados de todos os jogadores serão mostrados aqui -->
                         </div>
-                        <button id="next-round-btn" class="bg-yellow-500 text-gray-900 font-bold py-3 px-8 rounded-lg transition-all duration-300 transform hover:scale-110 shadow-lg hover:shadow-yellow-400/50 text-lg">Próxima Rodada</button>
+                        <button id="next-round-btn" class="bg-[#e5a938] text-[#4a2c2a] font-bold py-3 px-8 rounded-lg transition-all duration-300 transform hover:scale-110 shadow-lg hover:shadow-[#e5a938]/50 text-lg border-b-4 border-[#c08e2a]">Próxima Rodada</button>
                     </div>
                 </div>
 
                 <!-- Overlay de Anúncio da Ação (NOVO) -->
                 <div id="round-action-overlay" class="absolute inset-0 bg-black bg-opacity-80 flex flex-col items-center justify-center hidden p-6 z-50 transition-opacity duration-300">
                     <div id="round-action-content" class="text-center transform scale-0 transition-transform duration-300 ease-out">
-                        <p id="round-action-message" class="text-4xl font-bold text-white shadow-lg"></p>
+                        <p id="round-action-message" class="text-5xl font-bold text-white shadow-lg font-title"></p>
                     </div>
                 </div>
 
                  <!-- Overlay de Fim de Jogo -->
-                 <div id="game-over-overlay" class="absolute inset-0 bg-white bg-opacity-95 flex flex-col items-center justify-center hidden p-4 z-50">
-                    <h2 id="winner-message" class="text-3xl font-bold text-black mb-4 text-center"></h2>
-                    <p class="mb-6">O jogo terminou.</p>
-                    <button id="back-to-lobby-btn" class="bg-black text-white font-bold py-3 px-6 rounded-lg transition-transform transform hover:scale-105 shadow-md">Voltar para o Lobby</button>
+                 <div id="game-over-overlay" class="absolute inset-0 bg-[#f3e9d2] bg-opacity-95 flex flex-col items-center justify-center hidden p-4 z-50 text-[#4a2c2a]">
+                    <h2 id="winner-message" class="text-4xl font-bold mb-4 text-center font-title"></h2>
+                    <p class="mb-6 text-lg">O jogo terminou.</p>
+                    <button id="back-to-lobby-btn" class="bg-[#003366] text-white font-bold py-3 px-6 rounded-lg transition-transform transform hover:scale-105 shadow-md border-b-4 border-[#001a33]">Voltar para o Lobby</button>
                 </div>
             </div>
             
@@ -356,9 +359,9 @@
 
     <!-- #4: Modal de Configurações -->
     <div id="settings-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden z-50 p-4">
-        <div class="bg-white rounded-lg shadow-xl p-6 w-full max-w-sm relative overflow-y-auto max-h-full">
+        <div class="bg-[#f3e9d2] text-[#4a2c2a] rounded-lg shadow-xl p-6 w-full max-w-sm relative overflow-y-auto max-h-full border-4 border-[#4a2c2a]">
             <!-- Botão de Fechar (Principal) -->
-            <button id="close-modal-btn" class="absolute top-0 right-0 mt-2 mr-2 text-gray-500 hover:text-black z-10">
+            <button id="close-modal-btn" class="absolute top-0 right-0 mt-2 mr-2 text-[#4a2c2a] hover:text-red-800 z-10">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
                 </svg>
@@ -366,66 +369,66 @@
 
             <!-- Menu Principal do Modal -->
             <div id="settings-main-view">
-                <h2 class="text-2xl font-bold text-black text-center mb-6">Configurações</h2>
+                <h2 class="text-3xl font-bold text-center mb-6 font-title">Configurações</h2>
                 <div class="space-y-4">
-                    <button id="modal-account-btn" class="w-full bg-gray-100 text-black font-bold py-3 px-4 rounded-lg transition-transform transform hover:scale-105 shadow-md">Configuração da Conta</button>
-                    <button id="modal-room-info-btn" class="w-full bg-gray-100 text-black font-bold py-3 px-4 rounded-lg transition-transform transform hover:scale-105 shadow-md">Sala</button>
+                    <button id="modal-account-btn" class="w-full bg-[#c7b393] font-bold py-3 px-4 rounded-lg transition-transform transform hover:scale-105 shadow-md border-b-4 border-[#a1886c]">Configuração da Conta</button>
+                    <button id="modal-room-info-btn" class="w-full bg-[#c7b393] font-bold py-3 px-4 rounded-lg transition-transform transform hover:scale-105 shadow-md border-b-4 border-[#a1886c]">Sala</button>
                 </div>
             </div>
 
             <!-- View de Informações da Sala (Escondida por Padrão) -->
             <div id="settings-room-view" class="hidden">
-                <h2 class="text-2xl font-bold text-black text-center mb-4">Informação da Sala</h2>
+                <h2 class="text-3xl font-bold text-center mb-4 font-title">Informação da Sala</h2>
                 <!-- Código da Sala -->
                 <div class="mb-4">
-                    <p class="text-gray-600">Código da Sala:</p>
-                    <p id="modal-room-code" class="text-2xl font-mono text-black"></p>
+                    <p class="font-bold">Código da Sala:</p>
+                    <p id="modal-room-code" class="text-2xl font-mono"></p>
                 </div>
                 <!-- Anfitrião -->
                 <div id="modal-host-info" class="mb-4">
-                    <p class="text-gray-600">Anfitrião:</p>
-                    <p id="modal-host-name" class="text-black font-bold"></p>
+                    <p class="font-bold">Anfitrião:</p>
+                    <p id="modal-host-name" class="font-bold"></p>
                 </div>
                 <!-- Round -->
                 <div id="modal-round-info" class="mb-4 hidden">
-                    <p class="text-gray-600">Rodada Atual:</p>
-                    <p id="modal-round-number" class="text-black font-bold"></p>
+                    <p class="font-bold">Rodada Atual:</p>
+                    <p id="modal-round-number" class="font-bold"></p>
                 </div>
                 <!-- Jogadores -->
                 <div id="modal-players-info" class="mb-6">
-                    <p class="text-gray-600">Jogadores:</p>
-                    <ul id="modal-participants-list" class="text-black list-disc list-inside space-y-1 mt-1">
+                    <p class="font-bold">Jogadores:</p>
+                    <ul id="modal-participants-list" class="list-disc list-inside space-y-1 mt-1">
                         <!-- Lista de jogadores no modal -->
                     </ul>
                 </div>
                 <!-- Controles do Anfitrião (dentro do modal) -->
                 <div id="modal-host-controls" class="space-y-2 mb-4 hidden">
-                    <button id="end-game-btn" class="w-full bg-red-800 text-white font-bold py-3 px-4 rounded-lg transition-transform transform hover:scale-105 shadow-md">Finalizar Jogo</button>
+                    <button id="end-game-btn" class="w-full bg-[#990000] text-white font-bold py-3 px-4 rounded-lg transition-transform transform hover:scale-105 shadow-md border-b-4 border-[#660000]">Finalizar Jogo</button>
                 </div>
                 <!-- Botão de Sair -->
-                <button id="modal-logout-btn" class="w-full bg-black text-white font-bold py-3 px-4 rounded-lg transition-transform transform hover:scale-105 shadow-md mb-4">Sair da sala</button>
-                <button class="modal-back-btn w-full text-gray-500 hover:text-black text-sm transition duration-300">Voltar</button>
+                <button id="modal-logout-btn" class="w-full bg-[#4a2c2a] text-white font-bold py-3 px-4 rounded-lg transition-transform transform hover:scale-105 shadow-md mb-4 border-b-4 border-[#2c1a1a]">Sair da sala</button>
+                <button class="modal-back-btn w-full text-opacity-80 hover:text-opacity-100 text-sm transition duration-300">Voltar</button>
             </div>
 
             <!-- View de Configuração da Conta (Escondida por Padrão, conteúdo virá do #profile-modal) -->
             <div id="settings-account-view" class="hidden">
-                <h2 class="text-2xl font-bold text-black text-center mb-6">Configuração da Conta</h2>
+                <h2 class="text-3xl font-bold text-center mb-6 font-title">Configuração da Conta</h2>
                 <!-- Formulário de Troca de Senha -->
                 <form id="change-password-form">
                     <div class="mb-4">
-                        <label for="new-password" class="block text-sm font-medium text-gray-700 mb-2">Nova Senha</label>
-                        <input type="password" id="new-password" required class="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg text-black focus:outline-none focus:ring-2 focus:ring-black" placeholder="••••••••">
+                        <label for="new-password" class="block text-sm font-bold mb-2">Nova Senha</label>
+                        <input type="password" id="new-password" required class="w-full px-3 py-2 bg-[#f3e9d2] border-2 border-[#4a2c2a] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#e5a938]" placeholder="••••••••">
                     </div>
-                    <button type="submit" class="w-full bg-black text-white font-bold py-3 px-4 rounded-lg transition-transform transform hover:scale-105 shadow-md">Salvar Nova Senha</button>
+                    <button type="submit" class="w-full bg-[#003366] text-white font-bold py-3 px-4 rounded-lg transition-transform transform hover:scale-105 shadow-md border-b-4 border-[#001a33]">Salvar Nova Senha</button>
                 </form>
                 <p id="profile-message" class="text-center text-sm mt-4"></p>
-                <button class="modal-back-btn w-full text-gray-500 hover:text-black text-sm transition duration-300 mt-4">Voltar</button>
+                <button class="modal-back-btn w-full text-opacity-80 hover:text-opacity-100 text-sm transition duration-300 mt-4">Voltar</button>
             </div>
         </div>
     </div>
 
     <!-- Notificação Toast -->
-    <div id="toast-notification" class="fixed bottom-5 right-5 bg-black text-white py-2 px-4 rounded-lg shadow-lg hidden transition-opacity duration-300 z-[60]">
+    <div id="toast-notification" class="fixed bottom-5 right-5 bg-[#4a2c2a] text-[#f3e9d2] py-2 px-4 rounded-lg shadow-lg hidden transition-opacity duration-300 z-[60] border-2 border-[#e5a938]">
         <p id="toast-message"></p>
     </div>
 

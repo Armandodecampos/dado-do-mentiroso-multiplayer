@@ -324,14 +324,23 @@
                     </div>
                 </div>
 
-                <!-- Overlay de Resultado da Rodada -->
-                <div id="round-result-overlay" class="absolute inset-0 bg-white bg-opacity-95 flex flex-col items-center justify-center hidden p-4 z-50">
-                    <h2 id="round-result-message" class="text-2xl font-bold mb-4 text-center"></h2>
-                    <div id="all-dice-reveal" class="mb-4 p-4 border rounded-lg bg-gray-100 max-h-64 overflow-y-auto w-full max-w-sm">
-                        <!-- Dados de todos os jogadores serão mostrados aqui -->
+                <!-- Overlay de Resultado da Rodada (REDESENHADO) -->
+                <div id="round-result-overlay" class="absolute inset-0 bg-gray-900 bg-opacity-95 flex flex-col items-center justify-center hidden p-4 z-50 text-white">
+                    <div class="bg-gray-800 p-8 rounded-2xl shadow-2xl w-full max-w-lg text-center border-t-4 border-yellow-400">
+                        <h2 class="text-3xl font-extrabold text-yellow-400 mb-2">Resultado da Rodada</h2>
+                        <p id="round-result-message" class="text-lg text-gray-300 mb-6"></p>
+                        <div id="all-dice-reveal" class="mb-6 p-4 rounded-lg bg-gray-700 max-h-64 overflow-y-auto w-full space-y-3">
+                            <!-- Dados de todos os jogadores serão mostrados aqui -->
+                        </div>
+                        <button id="next-round-btn" class="bg-yellow-500 text-gray-900 font-bold py-3 px-8 rounded-lg transition-all duration-300 transform hover:scale-110 shadow-lg hover:shadow-yellow-400/50 text-lg">Próxima Rodada</button>
                     </div>
-                    <!-- Apenas exibe o botão "Próxima Rodada" para o anfitrião da sala -->
-                    <button id="next-round-btn" class="bg-black text-white font-bold py-3 px-6 rounded-lg transition-transform transform hover:scale-105 shadow-md">Próxima Rodada</button>
+                </div>
+
+                <!-- Overlay de Anúncio da Ação (NOVO) -->
+                <div id="round-action-overlay" class="absolute inset-0 bg-black bg-opacity-80 flex flex-col items-center justify-center hidden p-6 z-50 transition-opacity duration-300">
+                    <div id="round-action-content" class="text-center transform scale-0 transition-transform duration-300 ease-out">
+                        <p id="round-action-message" class="text-4xl font-bold text-white shadow-lg"></p>
+                    </div>
                 </div>
 
                  <!-- Overlay de Fim de Jogo -->
@@ -422,6 +431,9 @@
 
     <!-- Elemento de áudio para o som dos dados -->
     <audio id="dice-sound" src="https://dl.dropbox.com/scl/fi/lawmyuvtabr6nybkd4f6t/jogar-dados.mp3?rlkey=evl8egxa4w0ennfguprqngoy3&st=68x60hc3&dl=0" preload="auto"></audio>
+    <!-- Novos elementos de áudio para as ações -->
+    <audio id="challenge-sound" src="https://dl.dropbox.com/scl/fi/qhj2u85ycdb9j17wspl32/desafio-duvida.mp3?rlkey=o3s4ew3k94132338c0b5n9a8d&st=w1g9j5z4&dl=0" preload="auto"></audio>
+    <audio id="exact-sound" src="https://dl.dropbox.com/scl/fi/r8l5g4h6f5k9n3m2p1q0w/aposta-exata.mp3?rlkey=s7d6f5g4h3j2k1l0&st=a1b2c3d4&dl=0" preload="auto"></audio>
 
     <script>
         // --- 1. LÓGICA DE ESTADO DE JOGO ---
@@ -450,10 +462,12 @@
                 bidHistory: [], // NOVO: Armazena o histórico de lances
                 currentTurnMessage: '',
                 roundInfo: {
-                    reveal: false,
+                    phase: 'bidding', // Fases: 'bidding', 'challenged', 'exact_bid', 'reveal'
+                    actionTaker: null, // ID do jogador que iniciou a ação (duvidou ou cravou)
                     bidder: null,
                     challenger: null,
                     loser: null,
+                    losers: [], // Para o caso de acerto exato
                     actualQuantity: 0,
                     message: '',
                 },
@@ -535,6 +549,12 @@
         const exactBtn = document.getElementById('exact-btn');
         const nextRoundBtn = document.getElementById('next-round-btn');
         const backToLobbyBtn = document.getElementById('back-to-lobby-btn');
+        // Overlays e Sons para Animação
+        const roundActionOverlay = document.getElementById('round-action-overlay');
+        const roundActionContent = document.getElementById('round-action-content');
+        const roundActionMessage = document.getElementById('round-action-message');
+        const challengeSound = document.getElementById('challenge-sound');
+        const exactSound = document.getElementById('exact-sound');
         // Novos Elementos da UI do Jogo (Estrutura V2)
         const roundNumberDisplay = document.getElementById('round-number'); // Movido
         const myDiceDisplay = document.getElementById('my-dice-display'); // Movido
@@ -709,6 +729,8 @@
             // Eles serão reexibidos apenas se o estado atual do jogo o justificar.
             document.getElementById('round-result-overlay').classList.add('hidden');
             document.getElementById('game-over-overlay').classList.add('hidden');
+            roundActionOverlay.classList.add('hidden');
+
 
             // Se não houver jogo em andamento, não há mais nada a fazer.
             if (!gameState || !currentUser) return;
@@ -737,62 +759,77 @@
                 gameOverOverlay.classList.add('hidden');
             }
 
-            // 2. Controla a visibilidade do overlay de resultado
-            const roundResultOverlay = document.getElementById('round-result-overlay');
-            if (roundInfo && roundInfo.reveal) {
+            // 2. Lógica de Fases da Rodada (NOVO)
+            const currentPhase = roundInfo.phase;
+
+            if (currentPhase === 'challenged' || currentPhase === 'exact_bid') {
+                const actionTakerEmail = presences[roundInfo.actionTaker]?.[0].email.split('@')[0] || 'Jogador';
+                const bidderEmail = presences[roundInfo.bidder]?.[0].email.split('@')[0] || 'Jogador';
+                let message = '';
+                let soundToPlay = null;
+
+                if (currentPhase === 'challenged') {
+                    message = `${actionTakerEmail} duvidou de ${bidderEmail}!`;
+                    soundToPlay = challengeSound;
+                } else { // exact_bid
+                    message = `${actionTakerEmail} cravou a aposta!`;
+                    soundToPlay = exactSound;
+                }
+
+                roundActionMessage.textContent = message;
+                roundActionOverlay.classList.remove('hidden');
+
+                // Animação de entrada
+                setTimeout(() => {
+                    roundActionContent.classList.add('scale-100');
+                    if (soundToPlay) soundToPlay.play().catch(e => console.error("Erro ao tocar som:", e));
+                }, 100); // Pequeno atraso para garantir que a transição CSS funcione
+
+                // Não renderiza o resto da UI do jogo durante a animação
+                return;
+            }
+
+            if (currentPhase === 'reveal') {
+                const roundResultOverlay = document.getElementById('round-result-overlay');
                 document.getElementById('round-result-message').textContent = roundInfo.message;
                 const allDiceReveal = document.getElementById('all-dice-reveal');
-                allDiceReveal.innerHTML = ''; // Limpa a revelação anterior
+                allDiceReveal.innerHTML = '';
 
-                // Agrupa os dados por jogador
                 const diceByPlayer = {};
                 for (const pId in players) {
                     diceByPlayer[pId] = players[pId].dice;
                 }
-
-                const loserIds = roundInfo.losers || []; // Usa o array de perdedores
+                const loserIds = roundInfo.losers || [];
 
                 for (const playerId in diceByPlayer) {
                     const playerEmail = presences[playerId]?.[0].email || 'Jogador';
                     const isLoser = loserIds.includes(playerId);
-
-                    let diceHtml = '';
                     const diceArray = diceByPlayer[playerId];
+                    let diceHtml = '';
 
-                    if (isLoser) {
-                        // Anima o último dado para o perdedor
-                        diceArray.forEach((d, index) => {
-                            const dieSvg = diceSVGTags[d];
-                            if (index === diceArray.length - 1) {
-                                // Este é o último dado, envolve-o e adiciona a classe de animação
-                                diceHtml += `<div class="dice-explode-animation">${dieSvg}</div>`;
-                            } else {
-                                // Renderiza os outros dados normalmente
-                                diceHtml += `<div>${dieSvg}</div>`;
-                            }
-                        });
-                    } else {
-                        // Os dados de quem não perdeu são renderizados normalmente
-                        diceHtml = diceArray.map(d => `<div>${diceSVGTags[d]}</div>`).join(' ');
-                    }
+                    diceArray.forEach((d, index) => {
+                        const dieSvg = diceSVGTags[d].replace('class="w-8 h-8"', 'class="w-10 h-10"'); // Aumenta o dado
+                        // Se for o perdedor E este for o último dado, aplica a animação de explosão
+                        if (isLoser && index === diceArray.length - 1) {
+                            diceHtml += `<div class="inline-block dice-explode-animation">${dieSvg}</div>`;
+                        } else {
+                            diceHtml += `<div class="inline-block">${dieSvg}</div>`;
+                        }
+                    });
 
                     const containerClasses = isLoser
-                        ? 'mb-2 p-2 rounded-lg bg-red-200 border border-red-300 shadow-inner'
-                        : 'mb-2 p-2';
+                        ? 'p-3 rounded-lg bg-red-800/50 border border-red-600 shadow-inner'
+                        : 'p-3 rounded-lg bg-gray-600';
 
-                    allDiceReveal.innerHTML += `<div class="${containerClasses}"><p class="font-semibold">${playerEmail}:</p><div class="flex justify-center gap-2">${diceHtml}</div></div>`;
+                    allDiceReveal.innerHTML += `<div class="${containerClasses}"><p class="font-bold text-white mb-2">${playerEmail}:</p><div class="flex justify-center gap-2">${diceHtml}</div></div>`;
                 }
 
-                // Apenas exibe o botão "Próxima Rodada" para o anfitrião da sala
                 const isHost = currentUser && currentRoom && currentUser.id === currentRoom.creator_id;
                 nextRoundBtn.classList.toggle('hidden', !isHost);
-
-
                 roundResultOverlay.classList.remove('hidden');
                 return; // Pausa a renderização do resto da UI do jogo
-            } else {
-                roundResultOverlay.classList.add('hidden');
             }
+
 
             // 3. Atualiza a Barra do Topo
             const turnInfo = document.getElementById('turn-info');
@@ -1315,6 +1352,68 @@
                     renderGameUI();
                 }
 
+                // --- LÓGICA DE REVELAÇÃO COM ATRASO (APENAS HOST) ---
+                const isHost = currentUser && currentRoom && currentUser.id === currentRoom.creator_id;
+                const currentPhase = gameState?.roundInfo?.phase;
+
+                if (isHost && (currentPhase === 'challenged' || currentPhase === 'exact_bid')) {
+                    setTimeout(async () => {
+                        const { players, currentBid, roundInfo } = gameState;
+                        const actionTaker = roundInfo.actionTaker;
+                        const bidder = roundInfo.bidder;
+
+                        const actualQuantity = countDice(currentBid.face, players);
+                        const allDice = Object.values(players).flatMap(p => p.dice.map(d => ({ playerId: p.id, face: d })));
+
+                        let loser, roundMessage;
+                        let losers = [];
+                        const updatedPlayers = JSON.parse(JSON.stringify(players));
+
+                        if (currentPhase === 'challenged') {
+                            const bidWasCorrect = actualQuantity >= currentBid.quantity;
+                            loser = bidWasCorrect ? actionTaker : bidder;
+                            losers = [loser];
+                            updatedPlayers[loser].diceCount = Math.max(0, updatedPlayers[loser].diceCount - 1);
+                            roundMessage = bidWasCorrect ?
+                                `O lance era VERDADEIRO! Havia ${actualQuantity} dados de face ${currentBid.face}. ${presences[actionTaker]?.['0'].email.split('@')[0]} perde um dado.` :
+                                `O lance era FALSO! Havia apenas ${actualQuantity} dados de face ${currentBid.face}. ${presences[bidder]?.['0'].email.split('@')[0]} perde um dado.`;
+                        } else { // exact_bid
+                            const bidWasExact = actualQuantity === currentBid.quantity;
+                            if (bidWasExact) {
+                                roundMessage = `${presences[actionTaker]?.['0'].email.split('@')[0]} CRAVOU! Havia exatamente ${actualQuantity} dados de face ${currentBid.face}. Todos os outros perdem um dado.`;
+                                losers = Object.keys(updatedPlayers).filter(id => id !== actionTaker);
+                                for (const loserId of losers) {
+                                    updatedPlayers[loserId].diceCount = Math.max(0, updatedPlayers[loserId].diceCount - 1);
+                                }
+                                loser = actionTaker; // Próximo a jogar
+                            } else {
+                                losers = [actionTaker];
+                                updatedPlayers[actionTaker].diceCount = Math.max(0, updatedPlayers[actionTaker].diceCount - 1);
+                                roundMessage = `${presences[actionTaker]?.['0'].email.split('@')[0]} errou! Havia ${actualQuantity} dados de face ${currentBid.face}, não ${currentBid.quantity}. Ele perde um dado.`;
+                                loser = actionTaker; // Próximo a jogar
+                            }
+                        }
+
+                        // Prepara o estado de revelação final
+                        const revealGameState = {
+                            ...gameState,
+                            players: updatedPlayers,
+                            roundInfo: {
+                                ...roundInfo,
+                                phase: 'reveal',
+                                loser: loser,
+                                losers: losers,
+                                actualQuantity: actualQuantity,
+                                message: roundMessage,
+                                allDice: allDice
+                            }
+                        };
+
+                        await updateAndBroadcastGameState(revealGameState, true);
+                    }, 2500); // Atraso de 2.5 segundos para a animação
+                }
+
+
                 // Como a UI foi renderizada, oculta o overlay de carregamento.
                 // Isso é crucial para o anfitrião, que estava aguardando este evento.
                 toggleLoading(false);
@@ -1605,57 +1704,15 @@
         exactBtn.addEventListener('click', async () => {
             if (!gameState || currentUser.id !== gameState.currentPlayer || !gameState.currentBid) return;
 
-            const { players, currentBid } = gameState;
-            const bidderId = currentUser.id;
-
-            // 1. Contar a quantidade real de dados
-            const actualQuantity = countDice(currentBid.face, players);
-            const allDice = Object.values(players).flatMap(p => p.dice.map(d => ({ playerId: p.id, face: d })));
-
-            // 2. Determinar o resultado e atualizar a contagem de dados
-            const bidWasExact = actualQuantity === currentBid.quantity;
-            const updatedPlayers = JSON.parse(JSON.stringify(players)); // Cópia profunda
-            let roundMessage = '';
-            let loserForNextRound = bidderId; // O jogador que aposta sempre começa a próxima rodada
-
-            let losers = [];
-            if (bidWasExact) {
-                // O jogador acertou, todos os outros perdem um dado
-                roundMessage = `${presences[bidderId]?.[0].email.split('@')[0]} CRAVOU! Havia exatamente ${actualQuantity} dados de face ${currentBid.face}. Todos os outros jogadores perdem um dado.`;
-                losers = Object.keys(updatedPlayers).filter(id => id !== bidderId);
-                for (const loserId of losers) {
-                    updatedPlayers[loserId].diceCount = Math.max(0, updatedPlayers[loserId].diceCount - 1);
-                }
-                // O próximo a jogar é o que deu o lance (bidderId)
-                loserForNextRound = bidderId;
-            } else {
-                // O jogador errou e perde um dado
-                losers = [bidderId];
-                updatedPlayers[bidderId].diceCount = Math.max(0, updatedPlayers[bidderId].diceCount - 1);
-                roundMessage = `${presences[bidderId]?.[0].email.split('@')[0]} errou! Havia ${actualQuantity} dados de face ${currentBid.face}, não ${currentBid.quantity}. Ele perde um dado.`;
-                // O próximo a jogar é o perdedor do lance (bidderId)
-                loserForNextRound = bidderId;
-            }
-            
-            // Adiciona mensagem ao histórico
-            const newHistory = [...gameState.bidHistory];
-            newHistory.push({ type: 'status', message: roundMessage});
-
-
-            // 3. Preparar o estado atualizado do jogo para a revelação
+            // Apenas inicia a fase de "aposta exata", sem calcular o resultado.
+            // O cálculo será feito pelo anfitrião após a animação.
             const updatedGameState = {
                 ...gameState,
-                players: updatedPlayers,
-                bidHistory: newHistory, // Atualiza o histórico
                 roundInfo: {
-                    reveal: true,
-                    bidder: bidderId,
-                    challenger: null, // Não há desafiante neste caso
-                    loser: loserForNextRound, // Mantém para o início da próxima rodada
-                    losers: losers, // Array com todos os perdedores da rodada
-                    actualQuantity: actualQuantity,
-                    message: roundMessage,
-                    allDice: allDice,
+                    ...gameState.roundInfo,
+                    phase: 'exact_bid',
+                    actionTaker: currentUser.id, // O jogador que clicou em "Confirmar"
+                    bidder: gameState.lastBidder,    // O jogador que fez o último lance
                 }
             };
 
@@ -1665,43 +1722,15 @@
         challengeBtn.addEventListener('click', async () => {
             if (!gameState || currentUser.id !== gameState.currentPlayer || !gameState.currentBid) return;
 
-            const { players, currentBid, lastBidder } = gameState;
-            const challenger = currentUser.id;
-
-            // 1. Contar os dados
-            const actualQuantity = countDice(currentBid.face, players);
-            const allDice = Object.values(players).flatMap(p => p.dice.map(d => ({ playerId: p.id, face: d })));
-
-            // 2. Determinar o perdedor
-            const bidWasCorrect = actualQuantity >= currentBid.quantity;
-            const loser = bidWasCorrect ? challenger : lastBidder;
-
-            // 3. Atualizar o estado do jogo
-            const updatedPlayers = { ...players };
-            updatedPlayers[loser].diceCount = Math.max(0, updatedPlayers[loser].diceCount - 1);
-
-            const roundMessage = bidWasCorrect ?
-                `O lance era VERDADEIRO! Havia ${actualQuantity} dados de face ${currentBid.face}. ${presences[challenger]?.[0].email.split('@')[0]} perde um dado.` :
-                `O lance era FALSO! Havia apenas ${actualQuantity} dados de face ${currentBid.face}. ${presences[lastBidder]?.[0].email.split('@')[0]} perde um dado.`;
-
-            // Adiciona mensagem ao histórico
-            const newHistory = [...gameState.bidHistory];
-            newHistory.push({ type: 'status', message: `${presences[challenger]?.[0].email.split('@')[0]} DUVIDOU!`});
-            newHistory.push({ type: 'status', message: roundMessage});
-
+            // Apenas inicia a fase de "desafio", sem calcular o resultado.
+            // O cálculo será feito pelo anfitrião após a animação.
             const updatedGameState = {
                 ...gameState,
-                players: updatedPlayers,
-                bidHistory: newHistory, // Atualiza o histórico
                 roundInfo: {
-                    reveal: true,
-                    bidder: lastBidder,
-                    challenger: challenger,
-                    loser: loser,
-                    losers: [loser], // Array com o perdedor da rodada
-                    actualQuantity: actualQuantity,
-                    message: roundMessage,
-                    allDice: allDice // Inclui todos os dados para a revelação
+                    ...gameState.roundInfo,
+                    phase: 'challenged',
+                    actionTaker: currentUser.id, // O jogador que duvidou (desafiante)
+                    bidder: gameState.lastBidder,    // O jogador que fez o último lance
                 }
             };
 

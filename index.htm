@@ -805,13 +805,7 @@
             gameState.bidHistory.filter(item => item.type === 'bid').forEach((item, index) => {
                 // Wrapper relative para o ponto na linha
                 const msgWrapper = document.createElement('div');
-                msgWrapper.className = 'relative pl-2';
-
-                // Ponto na linha do tempo
-                const dot = document.createElement('div');
-                // Estilo unificado para todos os pontos, o destaque virá do fundo da mensagem
-                dot.className = `absolute -left-[25px] top-4 w-4 h-4 rounded-full border-2 border-white bg-blue-500`;
-                msgWrapper.appendChild(dot);
+                msgWrapper.className = '';
                 
                 const msgDiv = document.createElement('div');
 
@@ -895,8 +889,12 @@
 
             // Sempre rola para o final do histórico após a renderização para mostrar a jogada mais recente ou os controles
             setTimeout(() => {
-                historyContainer.scrollTop = historyContainer.scrollHeight;
-            }, 50);
+                if (isMyTurn) {
+                    bottomActions.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                } else {
+                    historyContainer.scrollTop = historyContainer.scrollHeight;
+                }
+            }, 100);
         }
 
         /**

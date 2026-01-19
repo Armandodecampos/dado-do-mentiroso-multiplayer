@@ -344,7 +344,7 @@
                 <div id="round-result-overlay" class="absolute inset-0 bg-[#3d2323] bg-opacity-95 flex flex-col items-center justify-center hidden p-4 z-50 text-[#f3e9d2]">
                     <div class="bg-[#4a2c2a] p-8 rounded-2xl shadow-2xl w-full max-w-lg text-center border-t-8 border-b-8 border-[#e5a938]">
                         <h2 class="text-4xl font-extrabold text-[#e5a938] mb-2 font-title">Resultado da Rodada</h2>
-                        <p id="round-result-message" class="text-lg mb-6"></p>
+                        <p id="round-result-message" class="text-lg mb-6 break-all"></p>
                         <div id="all-dice-reveal" class="mb-6 p-4 rounded-lg bg-[#3d2323] max-h-64 overflow-y-auto w-full space-y-3">
                             <!-- Dados de todos os jogadores serão mostrados aqui -->
                         </div>
@@ -363,7 +363,7 @@
                  <div id="game-over-overlay" class="absolute inset-0 bg-[#f3e9d2] bg-opacity-95 flex flex-col items-center justify-center hidden p-4 z-50 text-[#4a2c2a]">
                     <h2 id="winner-message" class="text-4xl font-bold mb-4 text-center font-title"></h2>
                     <p class="mb-6 text-lg">O jogo terminou.</p>
-                    <button id="back-to-lobby-btn" class="bg-[#003366] text-white font-bold py-3 px-6 rounded-lg transition-transform transform hover:scale-105 shadow-md border-b-4 border-[#001a33]">Voltar para o Menu Principal</button>
+                    <button id="back-to-lobby-btn" class="bg-[#003366] text-white font-bold py-3 px-6 rounded-lg transition-transform transform hover:scale-105 shadow-md border-b-4 border-[#001a33]">Voltar a sala de espera</button>
                 </div>
             </div>
             
@@ -644,7 +644,7 @@
             const isHost = currentUser.id === currentRoom.creator_id;
 
             // Controla a visibilidade dos elementos com base no estado do jogo
-            const showLobby = !gameStarted;
+            const showLobby = !gameStarted && !gameState?.gameWinner;
             if (showLobby) {
                 lobbyWaitContent.classList.remove('hidden');
                 gameView.classList.add('hidden');
@@ -1422,7 +1422,9 @@
                 }
 
                 renderRoomUI(); // Sempre renderiza a UI da sala (que mostrará o lobby se gameStarted for falso)
-                if (payload.gameStarted) {
+                // Renderiza a UI do jogo se houver um estado de jogo. Isso é crucial para
+                // exibir a tela de "fim de jogo" mesmo quando gameStarted é falso.
+                if (payload.gameState) {
                     renderGameUI();
                 }
 

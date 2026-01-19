@@ -1114,7 +1114,13 @@
                     }
                 });
 
-                if (error) showAuthMessage(error.message, true);
+                if (error) {
+                    if (error.message.includes('profiles_name_key')) {
+                        showAuthMessage('O nome de usuário já existe.', true);
+                    } else {
+                        showAuthMessage(error.message, true);
+                    }
+                }
                 else { showAuthMessage('Conta criada! Verifique seu email para confirmar.', false); signupForm.reset(); }
             } catch (err) {
                 showAuthMessage("Ocorreu um erro inesperado.", true);
@@ -1272,7 +1278,11 @@
             try {
                 const { error } = await sb.from('profiles').update({ name: newName }).eq('id', currentUser.id);
                 if (error) {
-                    profileMessage.textContent = error.message;
+                    if (error.message.includes('profiles_name_key')) {
+                        profileMessage.textContent = 'O nome de usuário já existe.';
+                    } else {
+                        profileMessage.textContent = error.message;
+                    }
                     profileMessage.className = 'text-center text-sm mt-4 text-red-400';
                 } else {
                     profileMessage.textContent = 'Nome atualizado com sucesso!';

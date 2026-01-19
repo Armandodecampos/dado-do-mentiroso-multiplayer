@@ -134,7 +134,7 @@
         </div>
 
         <!-- Logo -->
-        <div class="flex justify-center mb-6">
+        <div id="logo-container" class="flex justify-center mb-6">
             <img src="https://dl.dropbox.com/scl/fi/7j83mrl4cq08in40vydgc/logo-dado-do-mentiroso.png?rlkey=geqv8viwmppni2kzljtp636i8&st=cofqii6v&dl=0" alt="Logo do Jogo" class="w-64">
         </div>
 
@@ -495,6 +495,7 @@
         const lobbyMessage = document.getElementById('lobby-message');
         const welcomeMessage = document.getElementById('welcome-message');
         const createRoomBtn = document.getElementById('create-room-btn');
+        const logoContainer = document.getElementById('logo-container');
         const changePasswordForm = document.getElementById('change-password-form');
         const profileMessage = document.getElementById('profile-message');
         const logoutBtn = document.getElementById('logout-btn');
@@ -580,6 +581,7 @@
         }
 
         function setRoomViewMode(isFullScreen) {
+            logoContainer.classList.toggle('hidden', isFullScreen);
             if (isFullScreen) {
                 // Remove as classes que centralizam e limitam a largura
                 pageBody.classList.remove('flex', 'items-center', 'justify-center', 'min-h-screen');
@@ -805,7 +807,13 @@
             gameState.bidHistory.filter(item => item.type === 'bid').forEach((item, index) => {
                 // Wrapper relative para o ponto na linha
                 const msgWrapper = document.createElement('div');
-                msgWrapper.className = '';
+                msgWrapper.className = 'relative pl-2';
+
+                // Ponto na linha do tempo
+                const dot = document.createElement('div');
+                // Estilo unificado para todos os pontos, o destaque virá do fundo da mensagem
+                dot.className = `absolute -left-[25px] top-4 w-4 h-4 rounded-full border-2 border-white bg-blue-500`;
+                msgWrapper.appendChild(dot);
                 
                 const msgDiv = document.createElement('div');
 
@@ -889,11 +897,7 @@
 
             // Sempre rola para o final do histórico após a renderização para mostrar a jogada mais recente ou os controles
             setTimeout(() => {
-                if (isMyTurn) {
-                    bottomActions.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-                } else {
-                    historyContainer.scrollTop = historyContainer.scrollHeight;
-                }
+                historyContainer.scrollTop = historyContainer.scrollHeight;
             }, 100);
         }
 

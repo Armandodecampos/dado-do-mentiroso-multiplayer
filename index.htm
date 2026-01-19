@@ -731,14 +731,15 @@
                     player.dice = Array.from({ length: player.diceCount }, () => Math.floor(Math.random() * 6) + 1);
                 }
 
-                // 3. Transmite o novo estado. A UI do anfitrião será atualizada pelo ouvinte,
-                // que também é responsável por ocultar o carregamento.
+                // 3. Transmite o novo estado. A UI será atualizada pelo ouvinte de broadcast.
                 await updateAndBroadcastGameState(newGameState, true);
 
             } catch (err) {
                 console.error("Erro ao iniciar o jogo:", err);
                 showLobbyMessage(err.message, true);
-                toggleLoading(false); // Garante que o carregamento seja ocultado em caso de erro.
+            } finally {
+                // Garante que o carregamento seja sempre ocultado, mesmo que o broadcast falhe.
+                toggleLoading(false);
             }
         }
 
@@ -1328,19 +1329,21 @@
                 // 1. Apenas realiza as operações de rede.
                 const { error } = await sb.from('rooms').update({ game_started: false }).eq('room_code', currentRoom.room_code);
                 if (error) {
-                    console.error('Erro ao atualizar a sala para finalizar o jogo:', error.message);
-                    showToast(`Erro de servidor ao finalizar o jogo: ${error.message}`);
-                    toggleLoading(false); // Garante que o carregamento seja ocultado em caso de erro
-                    return;
+                    // Lança o erro para ser pego pelo bloco catch
+                    throw new Error(`Erro de servidor ao finalizar o jogo: ${error.message}`);
                 }
 
-                // 2. Transmite o estado finalizado. A UI do anfitrião será atualizada pelo ouvinte de broadcast.
+                // 2. Transmite o estado finalizado. A UI será atualizada pelo ouvinte de broadcast.
                 await updateAndBroadcastGameState(null, false);
 
             } catch (err) {
-                console.error("Erro inesperado ao finalizar o jogo:", err);
-                showToast("Ocorreu um erro inesperado. Tente novamente.");
-                toggleLoading(false); // Garante que o carregamento seja ocultado em caso de erro
+                console.error("Erro ao finalizar o jogo:", err.message);
+                showToast(err.message || "Ocorreu um erro inesperado. Tente novamente.");
+            } finally {
+                // Garante que o carregamento seja sempre ocultado.
+                // A atualização da UI do anfitrião acontecerá via broadcast,
+                // que também lida com o seu próprio estado de carregamento se necessário.
+                toggleLoading(false);
             }
         });
 

@@ -145,8 +145,8 @@
         <div id="auth-view" class="text-[#4a2c2a]">
             <!-- Abas de Login / Cadastro -->
             <div id="auth-tabs-container" class="flex mb-4 border-b-2 border-[#4a2c2a]">
-                <button id="tab-login" class="flex-1 py-2 text-center font-bold border-b-4 border-[#4a2c2a]">Login</button>
-                <button id="tab-signup" class="flex-1 py-2 text-center font-bold text-opacity-60">Cadastrar</button>
+                <button id="tab-login" class="flex-1 py-2 text-center font-bold transition-all duration-200 border-b-4 border-[#e5a938] text-opacity-100">Login</button>
+                <button id="tab-signup" class="flex-1 py-2 text-center font-bold transition-all duration-200 border-b-4 border-transparent text-opacity-60">Cadastrar</button>
             </div>
 
             <!-- Formulário de Login -->
@@ -722,7 +722,8 @@
                 playerIds.sort();
                 const newGameState = createInitialGameState(playerIds, playerIds[0]);
                 newGameState.turnOrder = playerIds;
-                newGameState.currentTurnMessage = `É a vez de ${presences[newGameState.currentPlayer]?.[0].name}.`;
+                const firstPlayerName = presences[newGameState.currentPlayer]?.[0].name || presences[newGameState.currentPlayer]?.[0].email;
+                newGameState.currentTurnMessage = `É a vez de ${firstPlayerName}.`;
 
                 for (const playerId in newGameState.players) {
                     const player = newGameState.players[playerId];
@@ -1038,7 +1039,7 @@
 
                 if (nextPlayerId) {
                     updatedGameState.currentPlayer = nextPlayerId;
-                    const nextPlayerName = presences[nextPlayerId]?.[0]?.name || 'Próximo jogador';
+                    const nextPlayerName = presences[nextPlayerId]?.[0]?.name || presences[nextPlayerId]?.[0]?.email || 'Próximo jogador';
                     updatedGameState.currentTurnMessage = `É a vez de ${nextPlayerName}.`;
                 }
                 // Se nenhum jogador ativo for encontrado, a lógica de fim de jogo cuidará disso.
@@ -1050,13 +1051,31 @@
 
         // --- 5. LÓGICA DE AUTENTICAÇÃO ---
         tabLogin.addEventListener('click', () => {
-            loginForm.classList.remove('hidden'); signupForm.classList.add('hidden');
-            tabLogin.classList.add('text-black', 'border-black'); tabSignup.classList.remove('text-black', 'border-black');
+            loginForm.classList.remove('hidden');
+            signupForm.classList.add('hidden');
+            resetPasswordForm.classList.add('hidden');
+
+            // Estilo da Aba Ativa
+            tabLogin.classList.add('border-[#e5a938]', 'text-opacity-100');
+            tabLogin.classList.remove('border-transparent', 'text-opacity-60');
+            // Estilo da Aba Inativa
+            tabSignup.classList.add('border-transparent', 'text-opacity-60');
+            tabSignup.classList.remove('border-[#e5a938]', 'text-opacity-100');
+
             authMessage.textContent = '';
         });
         tabSignup.addEventListener('click', () => {
-            signupForm.classList.remove('hidden'); loginForm.classList.add('hidden');
-            tabSignup.classList.add('text-black', 'border-black'); tabLogin.classList.remove('text-black', 'border-black');
+            signupForm.classList.remove('hidden');
+            loginForm.classList.add('hidden');
+            resetPasswordForm.classList.add('hidden');
+
+            // Estilo da Aba Ativa
+            tabSignup.classList.add('border-[#e5a938]', 'text-opacity-100');
+            tabSignup.classList.remove('border-transparent', 'text-opacity-60');
+            // Estilo da Aba Inativa
+            tabLogin.classList.add('border-transparent', 'text-opacity-60');
+            tabLogin.classList.remove('border-[#e5a938]', 'text-opacity-100');
+
             authMessage.textContent = '';
         });
 
@@ -1422,18 +1441,21 @@
                         let losers = [];
                         const updatedPlayers = JSON.parse(JSON.stringify(players));
 
+                        const actionTakerName = presences[actionTaker]?.[0]?.name || presences[actionTaker]?.[0]?.email;
+                        const bidderName = presences[bidder]?.[0]?.name || presences[bidder]?.[0]?.email;
+
                         if (currentPhase === 'challenged') {
                             const bidWasCorrect = actualQuantity >= currentBid.quantity;
                             loser = bidWasCorrect ? actionTaker : bidder;
                             losers = [loser];
                             updatedPlayers[loser].diceCount = Math.max(0, updatedPlayers[loser].diceCount - 1);
                             roundMessage = bidWasCorrect ?
-                                `O lance era VERDADEIRO! Havia ${actualQuantity} dados de face ${currentBid.face}. ${presences[actionTaker]?.['0'].email.split('@')[0]} perde um dado.` :
-                                `O lance era FALSO! Havia apenas ${actualQuantity} dados de face ${currentBid.face}. ${presences[bidder]?.['0'].email.split('@')[0]} perde um dado.`;
+                                `O lance era VERDADEIRO! Havia ${actualQuantity} dados de face ${currentBid.face}. ${actionTakerName} perde um dado.` :
+                                `O lance era FALSO! Havia apenas ${actualQuantity} dados de face ${currentBid.face}. ${bidderName} perde um dado.`;
                         } else { // exact_bid
                             const bidWasExact = actualQuantity === currentBid.quantity;
                             if (bidWasExact) {
-                                roundMessage = `${presences[actionTaker]?.['0'].email.split('@')[0]} CRAVOU! Havia exatamente ${actualQuantity} dados de face ${currentBid.face}. Todos os outros perdem um dado.`;
+                                roundMessage = `${actionTakerName} CRAVOU! Havia exatamente ${actualQuantity} dados de face ${currentBid.face}. Todos os outros perdem um dado.`;
                                 losers = Object.keys(updatedPlayers).filter(id => id !== actionTaker);
                                 for (const loserId of losers) {
                                     updatedPlayers[loserId].diceCount = Math.max(0, updatedPlayers[loserId].diceCount - 1);
@@ -1442,7 +1464,7 @@
                             } else {
                                 losers = [actionTaker];
                                 updatedPlayers[actionTaker].diceCount = Math.max(0, updatedPlayers[actionTaker].diceCount - 1);
-                                roundMessage = `${presences[actionTaker]?.['0'].email.split('@')[0]} errou! Havia ${actualQuantity} dados de face ${currentBid.face}, não ${currentBid.quantity}. Ele perde um dado.`;
+                                roundMessage = `${actionTakerName} errou! Havia ${actualQuantity} dados de face ${currentBid.face}, não ${currentBid.quantity}. Ele perde um dado.`;
                                 loser = actionTaker; // Próximo a jogar
                             }
                         }
@@ -1740,6 +1762,7 @@
             newHistory.push({ type: 'bid', playerId: currentUser.id, quantity, face });
 
 
+                const nextPlayerName = presences[nextPlayerId]?.[0].name || presences[nextPlayerId]?.[0].email;
             // Atualiza o estado do jogo com o novo lance
             const updatedGameState = {
                 ...gameState,
@@ -1748,7 +1771,7 @@
                 currentPlayer: nextPlayerId,
                 turn: gameState.turn + 1,
                 bidHistory: newHistory, // Atualiza o histórico
-                currentTurnMessage: `É a vez de ${presences[nextPlayerId]?.[0].name}.`
+                    currentTurnMessage: `É a vez de ${nextPlayerName}.`
             };
 
             // Atualiza e transmite o estado
@@ -1811,10 +1834,11 @@
                     showToast(`Erro ao finalizar o jogo: ${error.message}`);
                 }
                 
+                const winnerName = winnerId ? (presences[winnerId]?.[0].name || presences[winnerId]?.[0].email) : 'Empate';
                 const finalGameState = { 
                     ...gameState, 
                     gameWinner: winnerId,
-                    bidHistory: [...gameState.bidHistory, { type: 'status', message: `Fim do Jogo! ${winnerId ? presences[winnerId]?.[0].email.split('@')[0] + ' venceu.' : 'Empate'}`}]
+                    bidHistory: [...gameState.bidHistory, { type: 'status', message: `Fim do Jogo! ${winnerId ? winnerName + ' venceu.' : 'Empate'}`}]
                 };
 
 
@@ -1849,7 +1873,8 @@
                 bidHistory: [], // Limpa o histórico de lances para a nova rodada
             };
             
-            nextRoundState.currentTurnMessage = `É a vez de ${presences[nextRoundState.currentPlayer]?.[0].name}.`;
+            const nextPlayerName = presences[nextRoundState.currentPlayer]?.[0].name || presences[nextRoundState.currentPlayer]?.[0].email;
+            nextRoundState.currentTurnMessage = `É a vez de ${nextPlayerName}.`;
             nextRoundState.bidHistory.push({ type: 'status', message: `Rodada ${nextRoundState.round} começou!`});
 
 

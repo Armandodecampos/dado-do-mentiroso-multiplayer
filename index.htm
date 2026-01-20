@@ -95,6 +95,25 @@
         .animate-fade-out {
             animation: fade-out 0.5s ease-out both;
         }
+
+        /* Novas animações para o Vencedor Final */
+        @keyframes winner-intro {
+            0% {
+                transform: scale(0.5) translateY(-100px);
+                opacity: 0;
+            }
+            60% {
+                transform: scale(1.1);
+                opacity: 1;
+            }
+            100% {
+                transform: scale(1);
+                opacity: 1;
+            }
+        }
+        .animate-winner-intro {
+            animation: winner-intro 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+        }
     </style>
 </head>
 <body id="page-body" class="bg-[#3d2323] text-[#f3e9d2] flex items-center justify-center min-h-screen">
@@ -384,6 +403,15 @@
                     <h2 id="winner-message" class="text-4xl font-bold mb-4 text-center font-title"></h2>
                     <p class="mb-6 text-lg">O jogo terminou.</p>
                     <button id="back-to-lobby-btn" class="bg-[#003366] text-white font-bold py-3 px-6 rounded-lg transition-transform transform hover:scale-105 shadow-md border-b-4 border-[#001a33]">Voltar a sala de espera</button>
+                </div>
+
+                <!-- Overlay de Vencedor Final (NOVO E MELHORADO) -->
+                <div id="final-winner-overlay" class="absolute inset-0 bg-black bg-opacity-80 flex-col items-center justify-center hidden p-4 z-[60] text-white">
+                    <div id="winner-content" class="text-center p-8 rounded-lg">
+                        <h2 id="final-winner-name" class="text-6xl font-bold font-title text-amber-400" style="text-shadow: 3px 3px 6px rgba(0,0,0,0.7);"></h2>
+                        <p class="text-2xl mt-2 text-slate-200">é o vencedor final!</p>
+                        <button id="main-menu-btn" class="mt-8 bg-amber-500 text-slate-900 font-bold py-3 px-8 rounded-lg transition-all duration-300 transform hover:scale-110 shadow-lg hover:shadow-amber-500/50 text-xl border-b-4 border-amber-700">Voltar ao Menu</button>
+                    </div>
                 </div>
             </div>
             
@@ -788,14 +816,24 @@
             const diceSound = document.getElementById('dice-sound');
 
             // 1. Overlay de Fim de Jogo
-            const gameOverOverlay = document.getElementById('game-over-overlay');
+            const finalWinnerOverlay = document.getElementById('final-winner-overlay');
+            const winnerContent = document.getElementById('winner-content');
             if (gameWinner) {
                 const winnerName = presences[gameWinner]?.[0].name || presences[gameWinner]?.[0].email || 'O campeão';
-                document.getElementById('winner-message').textContent = `${winnerName} venceu o jogo!`;
-                gameOverOverlay.classList.remove('hidden');
-                return;
+                document.getElementById('final-winner-name').textContent = winnerName;
+
+                // Exibe o overlay e aciona a animação
+                finalWinnerOverlay.classList.remove('hidden');
+                finalWinnerOverlay.classList.add('flex'); // Usa flex para centralizar
+                winnerContent.classList.add('animate-winner-intro');
+
+                // Oculta o overlay antigo, se necessário
+                document.getElementById('game-over-overlay').classList.add('hidden');
+                return; // Impede a renderização do resto da UI do jogo
             } else {
-                gameOverOverlay.classList.add('hidden');
+                finalWinnerOverlay.classList.add('hidden');
+                finalWinnerOverlay.classList.remove('flex');
+                winnerContent.classList.remove('animate-winner-intro');
             }
 
             // 2. Lógica de Fases da Rodada (NOVO)
@@ -1516,7 +1554,6 @@
                             }
                         }
 
-                        // Prepara o estado de revelação final
                         const revealGameState = {
                             ...gameState,
                             players: updatedPlayers,
@@ -1530,8 +1567,26 @@
                                 allDice: allDice
                             }
                         };
+                        // LÓGICA DE VERIFICAÇÃO DO VENCEDOR (MOVIDA PARA CÁ)
+                        const remainingPlayersWithDice = Object.values(updatedPlayers).filter(p => p.diceCount > 0);
+                        let finalGameState = null;
 
-                        await updateAndBroadcastGameState(revealGameState, true);
+                        if (remainingPlayersWithDice.length <= 1) {
+                            const winnerId = remainingPlayersWithDice.length === 1 ? Object.keys(updatedPlayers).find(id => updatedPlayers[id].diceCount > 0) : null;
+                            const winnerName = winnerId ? (presences[winnerId]?.[0].name || presences[winnerId]?.[0].email) : 'Ninguém';
+
+                            finalGameState = {
+                                ...revealGameState,
+                                gameWinner: winnerId,
+                                bidHistory: [...revealGameState.bidHistory, { type: 'status', message: `Fim de Jogo! ${winnerName} venceu.` }]
+                            };
+
+                            // Atualiza o estado da sala no DB
+                            await sb.from('rooms').update({ game_started: false }).eq('room_code', currentRoom.room_code);
+                            await updateAndBroadcastGameState(finalGameState, false, 'winner_declared');
+                        } else {
+                             await updateAndBroadcastGameState(revealGameState, true, 'round_reveal');
+                        }
                     }, 2500); // Atraso de 2.5 segundos para a animação
                 }
 
@@ -1871,29 +1926,6 @@
                 return;
             }
 
-            // 1. Verificar se há um vencedor
-            const remainingPlayers = Object.entries(gameState.players).filter(([id, player]) => player.diceCount > 0);
-            if (remainingPlayers.length <= 1) {
-                const winnerId = remainingPlayers.length === 1 ? remainingPlayers[0][0] : null;
-                
-                // O anfitrião atualiza o banco de dados para indicar que o jogo terminou
-                const { error } = await sb.from('rooms').update({ game_started: false }).eq('room_code', currentRoom.room_code);
-                if (error) {
-                    showToast(`Erro ao finalizar o jogo: ${error.message}`);
-                }
-                
-                const winnerName = winnerId ? (presences[winnerId]?.[0].name || presences[winnerId]?.[0].email) : 'Empate';
-                const finalGameState = { 
-                    ...gameState, 
-                    gameWinner: winnerId,
-                    bidHistory: [...gameState.bidHistory, { type: 'status', message: `Fim do Jogo! ${winnerId ? winnerName + ' venceu.' : 'Empate'}`}]
-                };
-
-
-                await updateAndBroadcastGameState(finalGameState, false);
-                return;
-            }
-
             // 2. Preparar a próxima rodada
             const playersForNextRound = { ...gameState.players };
             const currentTurnOrder = [...gameState.turnOrder];
@@ -1935,6 +1967,10 @@
         });
 
         backToLobbyBtn.addEventListener('click', async () => {
+            leaveRoomBtn.click();
+        });
+
+        document.getElementById('main-menu-btn').addEventListener('click', () => {
             leaveRoomBtn.click();
         });
 

@@ -271,8 +271,47 @@
             </form>
             <p id="lobby-message" class="text-center text-red-700 text-sm mt-4"></p>
 
+            <!-- Botão Como Jogar (NOVO) -->
+            <button id="how-to-play-btn" class="w-full bg-[#4a2c2a] text-white font-bold py-2 px-4 rounded-lg transition-transform transform hover:scale-105 shadow-md mt-6 border-b-4 border-[#2c1a1a]">Como Jogar</button>
+
             <!-- Logout -->
             <button id="logout-btn" class="w-full mt-8 text-red-800 hover:text-red-600 text-sm transition duration-300 font-bold">Sair</button>
+        </div>
+
+        <!-- #5: View "Como Jogar" (NOVO) -->
+        <div id="how-to-play-view" class="hidden text-[#4a2c2a] prose max-w-none">
+            <h2 class="text-3xl font-bold text-center mb-4 font-title">Como Jogar</h2>
+
+            <h3>Objetivo</h3>
+            <p>O objetivo do "Dado do Mentiroso" é ser o último jogador com dados restantes. Você faz isso enganando seus oponentes e descobrindo quando eles estão mentindo sobre os dados na mesa.</p>
+
+            <h3>O Jogo</h3>
+            <ul>
+                <li>Cada jogador começa com 5 dados de seis faces.</li>
+                <li>No início de cada rodada, todos os jogadores rolam seus dados em segredo. Você só pode ver os seus próprios dados.</li>
+                <li>O primeiro jogador faz um "lance" sobre a quantidade total de uma determinada face de dado entre TODOS os jogadores na mesa. Por exemplo, "Aposto que há três dados com a face 4".</li>
+                <li>O próximo jogador tem duas opções:
+                    <ol>
+                        <li><strong>Aumentar o lance:</strong> Eles devem fazer um lance maior. Um lance é maior se a quantidade de dados for maior (ex: quatro 4s) ou se a quantidade for a mesma, mas a face do dado for maior (ex: três 5s).</li>
+                        <li><strong>Duvidar:</strong> Se o jogador achar que o lance anterior é uma mentira, ele pode "duvidar".</li>
+                    </ol>
+                </li>
+            </ul>
+
+            <h3>Duvidando</h3>
+            <p>Quando um jogador duvida, todos os dados são revelados:</p>
+            <ul>
+                <li>Se o lance era <strong>verdadeiro</strong> (havia pelo menos a quantidade de dados apostada), o jogador que duvidou perde um dado.</li>
+                <li>Se o lance era <strong>falso</strong> (havia menos dados do que o apostado), o jogador que fez o lance perde um dado.</li>
+            </ul>
+
+            <h3>"Cravando" (Aposta Exata)</h3>
+            <p>Em vez de duvidar, um jogador pode "cravar", acreditando que o lance anterior é exatamente o número de dados na mesa. Se estiverem certos, todos os outros jogadores perdem um dado. Se estiverem errados, eles perdem um dado.</p>
+
+            <h3>Fim do Jogo</h3>
+            <p>Um jogador é eliminado quando perde todos os seus dados. A última pessoa com dados restantes é a vencedora!</p>
+
+            <button id="back-to-lobby-from-how-to-play-btn" class="w-full bg-[#003366] text-white font-bold py-3 px-4 rounded-lg transition-transform transform hover:scale-105 shadow-md mt-6 border-b-4 border-[#001a33]">Voltar</button>
         </div>
 
         <!-- O CONTEÚDO DA SALA ABAIXO É REESTRUTURADO PARA O NOVO LAYOUT DE TELA CHEIA/JOGO -->
@@ -318,8 +357,7 @@
                 <!-- B. Histórico de Jogadas e Ações (ÁREA SCROLLÁVEL NO MEIO) -->
                 <!-- pt-16 (altura do topo) e pb-[120px] (altura do rodapé de dados) -->
                 <div id="history-container" class="absolute inset-0 pt-20 pb-[120px] overflow-y-auto w-full px-4">
-                    <!-- Adicionado border-l-4 para criar a barra vertical -->
-                    <div id="history-messages" class="space-y-4 border-l-4 border-[#e5a938] ml-2 pl-4 min-h-full flex flex-col justify-end py-4">
+                    <div id="history-messages" class="space-y-4 min-h-full flex flex-col justify-end py-4">
                         <!-- Mensagens de Lance e Turno (Chat-like) vão aqui -->
                     </div>
 
@@ -556,6 +594,7 @@
         const loadingOverlay = document.getElementById('loading-overlay');
         const authView = document.getElementById('auth-view');
         const lobbyView = document.getElementById('lobby-view');
+        const howToPlayView = document.getElementById('how-to-play-view'); // Novo
         const roomView = document.getElementById('room-view');
         const tabLogin = document.getElementById('tab-login');
         const tabSignup = document.getElementById('tab-signup');
@@ -576,6 +615,8 @@
         const changeNameForm = document.getElementById('change-name-form');
         const profileMessage = document.getElementById('profile-message');
         const logoutBtn = document.getElementById('logout-btn');
+        const howToPlayBtn = document.getElementById('how-to-play-btn'); // Novo
+        const backToLobbyFromHowToPlayBtn = document.getElementById('back-to-lobby-from-how-to-play-btn'); // Novo
         const leaveRoomBtn = document.getElementById('leave-room-btn');
         const roomCodeDisplay = document.getElementById('room-code-display');
         const roomCodeInput = document.getElementById('room-code-input');
@@ -643,7 +684,7 @@
         function showAuthMessage(message, isError = false) { authMessage.textContent = message; authMessage.className = `text-center text-sm mt-4 ${isError ? 'text-red-400' : 'text-green-400'}`; }
         function showLobbyMessage(message, isError = true) { lobbyMessage.textContent = message; lobbyMessage.className = `text-center text-sm mt-4 ${isError ? 'text-red-400' : 'text-green-400'}`; }
         function showView(viewId) {
-            ['auth-view', 'lobby-view', 'room-view'].forEach(id => document.getElementById(id).classList.add('hidden'));
+            ['auth-view', 'lobby-view', 'room-view', 'how-to-play-view'].forEach(id => document.getElementById(id).classList.add('hidden'));
             document.getElementById(viewId).classList.remove('hidden');
 
             // Controla a visibilidade dos botões de configuração com base na view
@@ -942,16 +983,6 @@
             // 4. Atualiza o Histórico de Jogadas (Chat-like)
             historyMessages.innerHTML = '';
             gameState.bidHistory.filter(item => item.type === 'bid').forEach((item, index) => {
-                // Wrapper relative para o ponto na linha
-                const msgWrapper = document.createElement('div');
-                msgWrapper.className = 'relative pl-2';
-
-                // Ponto na linha do tempo
-                const dot = document.createElement('div');
-                // Estilo unificado para todos os pontos, o destaque virá do fundo da mensagem
-                dot.className = `absolute -left-[25px] top-4 w-4 h-4 rounded-full border-2 border-white bg-blue-500`;
-                msgWrapper.appendChild(dot);
-                
                 const msgDiv = document.createElement('div');
 
                 // Define classes de estilo com base no tipo de mensagem
@@ -967,8 +998,7 @@
                                      </div>`;
                 msgDiv.innerHTML = bidHtml;
 
-                msgWrapper.appendChild(msgDiv);
-                historyMessages.appendChild(msgWrapper);
+                historyMessages.appendChild(msgDiv);
             });
 
             // 5. Atualiza os dados do jogador atual
@@ -1260,6 +1290,14 @@
             } finally {
                 toggleLoading(false);
             }
+        });
+
+        howToPlayBtn.addEventListener('click', () => {
+            showView('how-to-play-view');
+        });
+
+        backToLobbyFromHowToPlayBtn.addEventListener('click', () => {
+            showView('lobby-view');
         });
 
         // --- 6. LÓGICA DO MODAL DE CONFIGURAÇÕES (REFATORADO) ---

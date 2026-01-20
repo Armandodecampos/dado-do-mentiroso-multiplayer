@@ -355,7 +355,11 @@
                 <!-- Overlay de Anúncio da Ação (NOVO) -->
                 <div id="round-action-overlay" class="absolute inset-0 bg-black bg-opacity-80 flex flex-col items-center justify-center hidden p-6 z-50 transition-opacity duration-300">
                     <div id="round-action-content" class="text-center transform scale-0 transition-transform duration-300 ease-out">
-                        <p id="round-action-message" class="text-4xl font-bold text-white shadow-lg font-title break-all"></p>
+                        <div id="round-action-message-container" class="text-4xl font-bold text-white font-title break-all flex flex-col items-center text-center" style="text-shadow: 2px 2px 4px rgba(0,0,0,0.7);">
+                            <span id="action-player-1"></span>
+                            <span id="action-verb" class="block my-2 text-red-500 italic"></span>
+                            <span id="action-player-2"></span>
+                        </div>
                     </div>
                 </div>
 
@@ -784,18 +788,22 @@
             if (currentPhase === 'challenged' || currentPhase === 'exact_bid') {
                 const actionTakerName = presences[roundInfo.actionTaker]?.[0].name || 'Jogador';
                 const bidderName = presences[roundInfo.bidder]?.[0].name || 'Jogador';
-                let message = '';
+                let actionVerb = '';
                 let soundToPlay = null;
 
                 if (currentPhase === 'challenged') {
-                    message = `${actionTakerName} duvidou de ${bidderName}!`;
+                    actionVerb = 'duvidou de';
                     soundToPlay = challengeSound;
                 } else { // exact_bid
-                    message = `${actionTakerName} cravou a aposta!`;
+                    actionVerb = 'cravou a aposta de';
                     soundToPlay = exactSound;
                 }
 
-                roundActionMessage.textContent = message;
+                // Preenche a nova estrutura
+                document.getElementById('action-player-1').textContent = actionTakerName;
+                document.getElementById('action-verb').textContent = actionVerb;
+                document.getElementById('action-player-2').textContent = bidderName + '!';
+
                 roundActionOverlay.classList.remove('hidden');
 
                 // Animação de entrada

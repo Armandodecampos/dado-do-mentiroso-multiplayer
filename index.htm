@@ -79,6 +79,22 @@
             border-radius: 4px;
             border: 1px solid #4a2c2a;
         }
+
+        /* Novas animações para o anúncio de ação */
+        @keyframes slide-in-from-left {
+            from { transform: translateX(-100vw); }
+            to { transform: translateX(0); }
+        }
+        .animate-slide-in-from-left {
+            animation: slide-in-from-left 0.5s cubic-bezier(0.250, 0.460, 0.450, 0.940) both;
+        }
+        @keyframes fade-out {
+            from { opacity: 1; }
+            to { opacity: 0; }
+        }
+        .animate-fade-out {
+            animation: fade-out 0.5s ease-out both;
+        }
     </style>
 </head>
 <body id="page-body" class="bg-[#3d2323] text-[#f3e9d2] flex items-center justify-center min-h-screen">
@@ -341,7 +357,7 @@
                 </div>
 
                 <!-- Overlay de Resultado da Rodada (REDESENHADO) -->
-                <div id="round-result-overlay" class="absolute inset-0 bg-[#3d2323] bg-opacity-95 flex flex-col items-center justify-center hidden p-4 z-50 text-[#f3e9d2]">
+                <div id="round-result-overlay" class="absolute inset-0 bg-[#3d2323] bg-opacity-95 flex flex-col items-center justify-center hidden p-4 z-50 text-[#f3e9d2] opacity-0 transition-opacity duration-700 ease-in">
                     <div class="bg-[#4a2c2a] p-8 rounded-2xl shadow-2xl w-full max-w-lg text-center border-t-8 border-b-8 border-[#e5a938]">
                         <h2 class="text-4xl font-extrabold text-[#e5a938] mb-2 font-title">Resultado da Rodada</h2>
                         <p id="round-result-message" class="text-lg mb-6 break-all"></p>
@@ -353,8 +369,8 @@
                 </div>
 
                 <!-- Overlay de Anúncio da Ação (NOVO) -->
-                <div id="round-action-overlay" class="absolute inset-0 bg-black bg-opacity-80 flex flex-col items-center justify-center hidden p-6 z-50 transition-opacity duration-300">
-                    <div id="round-action-content" class="text-center transform scale-0 transition-transform duration-300 ease-out">
+                <div id="round-action-overlay" class="absolute inset-0 bg-black flex flex-col items-center justify-center hidden p-6 z-50">
+                    <div id="round-action-content" class="text-center">
                         <div id="round-action-message-container" class="text-4xl font-bold text-white font-title break-all flex flex-col items-center text-center" style="text-shadow: 2px 2px 4px rgba(0,0,0,0.7);">
                             <span id="action-player-1"></span>
                             <span id="action-verb" class="block my-2 text-red-500 italic"></span>
@@ -806,11 +822,21 @@
 
                 roundActionOverlay.classList.remove('hidden');
 
-                // Animação de entrada
+                // Orquestração da nova animação
+                const messageContainer = document.getElementById('round-action-message-container');
+
+                // Garante que o estado inicial está limpo
+                messageContainer.classList.remove('animate-slide-in-from-left', 'animate-fade-out');
+
+                // 1. Animação de entrada (slide in)
+                messageContainer.classList.add('animate-slide-in-from-left');
+                if (soundToPlay) soundToPlay.play().catch(e => console.error("Erro ao tocar som:", e));
+
+                // 2. Animação de saída (fade out) após um tempo
                 setTimeout(() => {
-                    roundActionContent.classList.add('scale-100');
-                    if (soundToPlay) soundToPlay.play().catch(e => console.error("Erro ao tocar som:", e));
-                }, 100); // Pequeno atraso para garantir que a transição CSS funcione
+                    messageContainer.classList.remove('animate-slide-in-from-left');
+                    messageContainer.classList.add('animate-fade-out');
+                }, 1800); // Espera 1.8s antes de começar a desaparecer
 
                 // Não renderiza o resto da UI do jogo durante a animação
                 return;
@@ -854,6 +880,12 @@
                 const isHost = currentUser && currentRoom && currentUser.id === currentRoom.creator_id;
                 nextRoundBtn.classList.toggle('hidden', !isHost);
                 roundResultOverlay.classList.remove('hidden');
+
+                // Adiciona o efeito de fade-in
+                setTimeout(() => {
+                    roundResultOverlay.classList.remove('opacity-0');
+                }, 100); // Pequeno delay para garantir a transição
+
                 return; // Pausa a renderização do resto da UI do jogo
             }
 

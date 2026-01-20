@@ -410,7 +410,7 @@
                     <div id="winner-content" class="text-center p-8 rounded-lg">
                         <h2 id="final-winner-name" class="text-6xl font-bold font-title text-amber-400" style="text-shadow: 3px 3px 6px rgba(0,0,0,0.7);"></h2>
                         <p class="text-2xl mt-2 text-slate-200">é o vencedor final!</p>
-                        <button id="main-menu-btn" class="mt-8 bg-amber-500 text-slate-900 font-bold py-3 px-8 rounded-lg transition-all duration-300 transform hover:scale-110 shadow-lg hover:shadow-amber-500/50 text-xl border-b-4 border-amber-700">Voltar ao Menu</button>
+                        <button id="back-to-room-lobby-btn" class="mt-8 bg-amber-500 text-slate-900 font-bold py-3 px-8 rounded-lg transition-all duration-300 transform hover:scale-110 shadow-lg hover:shadow-amber-500/50 text-xl border-b-4 border-amber-700">Voltar para a Sala</button>
                     </div>
                 </div>
             </div>
@@ -821,6 +821,9 @@
             if (gameWinner) {
                 const winnerName = presences[gameWinner]?.[0].name || presences[gameWinner]?.[0].email || 'O campeão';
                 document.getElementById('final-winner-name').textContent = winnerName;
+                 // Controla a visibilidade do botão de voltar
+                const isHost = currentUser && currentRoom && currentUser.id === currentRoom.creator_id;
+                document.getElementById('back-to-room-lobby-btn').classList.toggle('hidden', !isHost);
 
                 // Exibe o overlay e aciona a animação
                 finalWinnerOverlay.classList.remove('hidden');
@@ -1970,8 +1973,10 @@
             leaveRoomBtn.click();
         });
 
-        document.getElementById('main-menu-btn').addEventListener('click', () => {
-            leaveRoomBtn.click();
+        document.getElementById('back-to-room-lobby-btn').addEventListener('click', async () => {
+            if (currentUser && currentRoom && currentUser.id === currentRoom.creator_id) {
+                await updateAndBroadcastGameState(null, false);
+            }
         });
 
         // --- 7. INICIALIZAÇÃO E AUTENTICAÇÃO ---

@@ -116,7 +116,7 @@
         }
     </style>
 </head>
-<body id="page-body" class="bg-[#3d2323] text-[#f3e9d2] flex flex-col items-center justify-center min-h-screen">
+<body id="page-body" class="bg-[#3d2323] text-[#f3e9d2] flex flex-col md:items-center md:justify-center min-h-screen">
 
     <!-- SVG Definitions for Dice -->
     <svg width="0" height="0" style="position:absolute">
@@ -173,7 +173,7 @@
     </div>
 
     <!-- Container Principal (Aplica-se a Lobby e Auth) -->
-    <div id="main-container" class="max-w-4xl p-10 bg-[#f3e9d2] border-4 border-[#4a2c2a] rounded-lg shadow-xl relative">
+    <div id="main-container" class="w-full min-h-screen md:min-h-0 md:h-auto md:max-w-4xl p-4 md:p-10 bg-[#f3e9d2] md:border-4 border-[#4a2c2a] md:rounded-lg md:shadow-xl relative">
 
         <!-- Overlay de Carregamento -->
         <div id="loading-overlay" class="absolute inset-0 bg-[#f3e9d2] bg-opacity-75 flex items-center justify-center rounded-lg z-50 hidden">
@@ -712,19 +712,28 @@
         }
 
         function setRoomViewMode(isFullScreen) {
+            const mc = mainContainer.classList;
+            const body = pageBody.classList;
+
             logoContainer.classList.toggle('hidden', isFullScreen);
-            // Alterna as classes para garantir que o contêiner se expanda ou se contraia corretamente.
-            mainContainer.classList.toggle('max-w-4xl', !isFullScreen);
-            mainContainer.classList.toggle('w-full', isFullScreen);
 
             if (isFullScreen) {
-                // Remove estilos de "cartão" para a visualização do jogo
-                mainContainer.classList.remove('p-10', 'rounded-lg', 'shadow-xl');
-                mainContainer.classList.add('h-screen', 'p-0'); // Ocupa a altura da tela, sem preenchimento
+                // FORÇA O MODO DE TELA CHEIA
+                // Remove todas as classes de layout responsivo e de cartão
+                mc.remove('md:min-h-0', 'md:h-auto', 'md:max-w-4xl', 'p-4', 'md:p-10', 'md:border-4', 'md:rounded-lg', 'md:shadow-xl');
+                body.remove('md:items-center', 'md:justify-center');
+
+                // Adiciona classes para forçar altura e largura total
+                mc.add('h-screen', 'w-full', 'p-0');
+
             } else {
-                // Adiciona de volta os estilos de "cartão" para o lobby/auth
-                mainContainer.classList.add('p-10', 'rounded-lg', 'shadow-xl');
-                mainContainer.classList.remove('h-screen', 'p-0');
+                // RESTAURA O MODO DE CARTÃO RESPONSIVO
+                // Remove as classes de tela cheia
+                mc.remove('h-screen', 'p-0');
+
+                // Adiciona de volta todas as classes de layout responsivo e de cartão
+                mc.add('md:min-h-0', 'md:h-auto', 'md:max-w-4xl', 'p-4', 'md:p-10', 'md:border-4', 'md:rounded-lg', 'md:shadow-xl');
+                body.add('md:items-center', 'md:justify-center');
             }
         }
 
@@ -2057,6 +2066,7 @@
 
         // --- 7. INICIALIZAÇÃO E AUTENTICAÇÃO ---
         async function handleUserLoggedIn(session) {
+            if (!session) return; // Adiciona uma verificação para evitar erros se a sessão for nula
             currentUser = session.user;
             const { data: profile, error } = await sb.from('profiles').select('name, last_room').eq('id', currentUser.id).single();
             if (error) {
@@ -2170,7 +2180,8 @@
             },
             showView: showView,
             renderRoomUI: renderRoomUI,
-            renderGameUI: renderGameUI // Expor a função de renderização do jogo
+            renderGameUI: renderGameUI, // Expor a função de renderização do jogo
+            handleUserLoggedIn: handleUserLoggedIn
         };
     </script>
 </body>

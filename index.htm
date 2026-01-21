@@ -680,6 +680,13 @@
         let channelSubscribedAt = null; // Rastreia o tempo de inscrição para evitar condições de corrida
 
         // --- 4. FUNÇÕES AUXILIARES ---
+        function timeout(ms, message = 'A operação demorou muito e foi cancelada.') {
+            return new Promise((_, reject) => {
+                setTimeout(() => {
+                    reject(new Error(message));
+                }, ms);
+            });
+        }
         function toggleLoading(isLoading) { loadingOverlay.classList.toggle('hidden', !isLoading); }
         function showAuthMessage(message, isError = false) { authMessage.textContent = message; authMessage.className = `text-center text-sm mt-4 ${isError ? 'text-red-400' : 'text-green-400'}`; }
         function showLobbyMessage(message, isError = true) { lobbyMessage.textContent = message; lobbyMessage.className = `text-center text-sm mt-4 ${isError ? 'text-red-400' : 'text-green-400'}`; }
@@ -781,18 +788,22 @@
          * @param {boolean} newGameStarted - O estado de "jogo iniciado".
          */
         async function updateAndBroadcastGameState(newGameState, newGameStarted, reason = null) {
-            // NÃO atualiza mais o estado local ou renderiza a UI aqui.
-            // A atualização agora é tratada de forma consistente pelo ouvinte de broadcast
-            // para todos os clientes, incluindo o anfitrião.
-
-            // Apenas transmite o novo estado. O anfitrião receberá este evento
-            // como qualquer outro cliente e atualizará sua UI nesse momento.
             if (currentRoomChannel) {
-                await currentRoomChannel.send({
-                    type: 'broadcast',
-                    event: 'game_state_update',
-                    payload: { gameState: newGameState, gameStarted: newGameStarted, reason: reason },
-                });
+                try {
+                    await Promise.race([
+                        currentRoomChannel.send({
+                            type: 'broadcast',
+                            event: 'game_state_update',
+                            payload: { gameState: newGameState, gameStarted: newGameStarted, reason: reason },
+                        }),
+                        timeout(5000, 'A transmissão do estado do jogo demorou muito.')
+                    ]);
+                } catch (error) {
+                    console.error('Falha ao transmitir o estado do jogo:', error.message);
+                    // Lança o erro novamente para que as funções chamadoras possam lidar com ele.
+                    // Isso é importante para que o chamador possa parar o indicador de carregamento.
+                    throw error;
+                }
             }
         }
 
@@ -1097,74 +1108,59 @@
                 return; // Jogo não está ativo ou jogador não está no jogo.
             }
 
-            const updatedGameState = JSON.parse(JSON.stringify(gameState));
-            const originalTurnOrder = [...gameState.turnOrder]; // Copia a ordem original ANTES de qualquer modificação.
+            try {
+                const updatedGameState = JSON.parse(JSON.stringify(gameState));
+                const originalTurnOrder = [...gameState.turnOrder];
 
-            // 1. Remove o jogador do estado do jogo.
-            delete updatedGameState.players[leavingPlayerId];
-            updatedGameState.turnOrder = updatedGameState.turnOrder.filter(id => id !== leavingPlayerId);
+                delete updatedGameState.players[leavingPlayerId];
+                updatedGameState.turnOrder = updatedGameState.turnOrder.filter(id => id !== leavingPlayerId);
 
-            // 2. Adiciona uma mensagem de status sobre a saída.
-            const leavingName = presences[leavingPlayerId]?.[0]?.name || 'Um jogador';
-            updatedGameState.bidHistory.push({ type: 'status', message: `${leavingName} saiu do jogo.` });
+                const leavingName = presences[leavingPlayerId]?.[0]?.name || 'Um jogador';
+                updatedGameState.bidHistory.push({ type: 'status', message: `${leavingName} saiu do jogo.` });
 
-            // 3. Verifica se o jogo deve terminar e se há um vencedor.
-            if (updatedGameState.turnOrder.length < 2) {
-                const winnerId = updatedGameState.turnOrder.length === 1 ? updatedGameState.turnOrder[0] : null;
+                if (updatedGameState.turnOrder.length < 2) {
+                    const winnerId = updatedGameState.turnOrder.length === 1 ? updatedGameState.turnOrder[0] : null;
+                    const finalGameState = { ...updatedGameState, gameWinner: winnerId };
 
-                // Prepara o estado final do jogo com o vencedor
-                const finalGameState = {
-                    ...updatedGameState,
-                    gameWinner: winnerId,
-                };
+                    if (winnerId) {
+                        const winnerName = presences[winnerId]?.[0]?.name || 'O último jogador';
+                        finalGameState.bidHistory.push({ type: 'status', message: `Fim do Jogo! ${winnerName} venceu.` });
+                    } else {
+                        finalGameState.bidHistory.push({ type: 'status', message: `Fim do Jogo! Não há jogadores suficientes.` });
+                    }
 
-                // Adiciona mensagem de status sobre a vitória
-                if (winnerId) {
-                    const winnerName = presences[winnerId]?.[0]?.name || 'O último jogador';
-                    finalGameState.bidHistory.push({ type: 'status', message: `Fim do Jogo! ${winnerName} venceu.` });
-                } else {
-                    finalGameState.bidHistory.push({ type: 'status', message: `Fim do Jogo! Não há jogadores suficientes.` });
+                    await sb.from('rooms').update({ game_started: false }).eq('room_code', currentRoom.room_code);
+                    await updateAndBroadcastGameState(finalGameState, false, winnerId ? 'winner_declared' : 'not_enough_players');
+                    return;
                 }
 
-                // Atualiza o DB para permitir que novos jogadores entrem.
-                await sb.from('rooms').update({ game_started: false }).eq('room_code', currentRoom.room_code);
-
-                // Transmite o fim do jogo com o estado final (que inclui o vencedor).
-                // O segundo argumento `false` indica que o jogo não está mais "iniciado".
-                await updateAndBroadcastGameState(finalGameState, false, winnerId ? 'winner_declared' : 'not_enough_players');
-                return; // Encerra a função aqui.
-            }
-
-            // 4. Se o jogo continua e era a vez do jogador que saiu, determina o próximo turno.
-            if (gameState.currentPlayer === leavingPlayerId) {
-                const leavingPlayerIndex = originalTurnOrder.indexOf(leavingPlayerId);
-                let nextPlayerId = null;
-
-                // Começando do jogador que saiu, percorra a ordem de turno original em um loop
-                // para encontrar o primeiro jogador subsequente que ainda está ativo.
-                if (leavingPlayerIndex !== -1) {
-                    for (let i = 1; i <= originalTurnOrder.length; i++) {
-                        const nextIndex = (leavingPlayerIndex + i) % originalTurnOrder.length;
-                        const potentialNextPlayerId = originalTurnOrder[nextIndex];
-
-                        // O próximo jogador deve estar na lista de jogadores atualizada E ter mais de 0 dados.
-                        if (updatedGameState.players[potentialNextPlayerId] && updatedGameState.players[potentialNextPlayerId].diceCount > 0) {
-                            nextPlayerId = potentialNextPlayerId;
-                            break; // Encontrou o jogador
+                if (gameState.currentPlayer === leavingPlayerId) {
+                    const leavingPlayerIndex = originalTurnOrder.indexOf(leavingPlayerId);
+                    let nextPlayerId = null;
+                    if (leavingPlayerIndex !== -1) {
+                        for (let i = 1; i <= originalTurnOrder.length; i++) {
+                            const nextIndex = (leavingPlayerIndex + i) % originalTurnOrder.length;
+                            const potentialNextPlayerId = originalTurnOrder[nextIndex];
+                            if (updatedGameState.players[potentialNextPlayerId] && updatedGameState.players[potentialNextPlayerId].diceCount > 0) {
+                                nextPlayerId = potentialNextPlayerId;
+                                break;
+                            }
                         }
+                    }
+                    if (nextPlayerId) {
+                        updatedGameState.currentPlayer = nextPlayerId;
+                        const nextPlayerName = presences[nextPlayerId]?.[0]?.name || presences[nextPlayerId]?.[0]?.email || 'Próximo jogador';
+                        updatedGameState.currentTurnMessage = `É a vez de ${nextPlayerName}.`;
                     }
                 }
 
-                if (nextPlayerId) {
-                    updatedGameState.currentPlayer = nextPlayerId;
-                    const nextPlayerName = presences[nextPlayerId]?.[0]?.name || presences[nextPlayerId]?.[0]?.email || 'Próximo jogador';
-                    updatedGameState.currentTurnMessage = `É a vez de ${nextPlayerName}.`;
-                }
-                // Se nenhum jogador ativo for encontrado, a lógica de fim de jogo cuidará disso.
+                await updateAndBroadcastGameState(updatedGameState, true);
+            } catch (error) {
+                console.error(`Falha ao atualizar o estado do jogo após a saída do jogador: ${error.message}`);
+                // Se a transmissão falhar, o estado pode ficar dessincronizado.
+                // Uma notificação pode ser útil aqui para informar o anfitrião.
+                showToast("Erro de rede ao atualizar o jogo. O estado pode estar inconsistente.");
             }
-
-            // 5. Transmite o estado atualizado para continuar o jogo.
-            await updateAndBroadcastGameState(updatedGameState, true);
         }
 
         // --- 5. LÓGICA DE AUTENTICAÇÃO ---
@@ -1449,23 +1445,26 @@
             toggleLoading(true);
 
             try {
-                // 1. Apenas realiza as operações de rede.
-                const { error } = await sb.from('rooms').update({ game_started: false }).eq('room_code', currentRoom.room_code);
+                // Compete a chamada de DB com um timeout.
+                const { error } = await Promise.race([
+                    sb.from('rooms').update({ game_started: false }).eq('room_code', currentRoom.room_code),
+                    timeout(10000, 'A finalização do jogo demorou muito.')
+                ]);
+
                 if (error) {
-                    // Lança o erro para ser pego pelo bloco catch
                     throw new Error(`Erro de servidor ao finalizar o jogo: ${error.message}`);
                 }
 
-                // 2. Transmite o estado finalizado. A UI será atualizada pelo ouvinte de broadcast.
+                // Transmite o estado finalizado. A UI será atualizada pelo ouvinte de broadcast.
                 await updateAndBroadcastGameState(null, false);
 
             } catch (err) {
                 console.error("Erro ao finalizar o jogo:", err.message);
                 showToast(err.message || "Ocorreu um erro inesperado. Tente novamente.");
             } finally {
-                // Garante que o carregamento seja sempre ocultado.
-                // A atualização da UI do anfitrião acontecerá via broadcast,
-                // que também lida com o seu próprio estado de carregamento se necessário.
+                // O carregamento é ocultado pelo próprio ouvinte de broadcast,
+                // mas adicionamos um fallback aqui para garantir que ele seja sempre ocultado
+                // em caso de falha na transmissão.
                 toggleLoading(false);
             }
         });
@@ -1706,26 +1705,37 @@
 
             try {
                 if (!currentUser) {
-                    showLobbyMessage('Erro: Usuário não está logado.', true);
-                    return;
+                    throw new Error('Usuário não está logado.');
                 }
                 const newCode = generateRoomCode();
-                const { data, error } = await sb.from('rooms').insert({ room_code: newCode, creator_id: currentUser.id, game_started: false }).select().single();
+
+                // Compete a chamada de DB com um timeout de 10 segundos
+                const { data, error } = await Promise.race([
+                    sb.from('rooms').insert({ room_code: newCode, creator_id: currentUser.id, game_started: false }).select().single(),
+                    timeout(10000, 'A criação da sala demorou muito e foi cancelada.')
+                ]);
 
                 if (error) {
-                    if (error.code === '23505') showLobbyMessage('Erro ao criar sala, tente novamente.', true);
-                    else showLobbyMessage(error.message, true);
-                } else if (data) {
+                    if (error.code === '23505') {
+                        throw new Error('Erro ao criar sala, o código já existe. Tente novamente.');
+                    }
+                    throw error; // Lança outros erros de DB
+                }
+
+                if (data) {
                     currentRoom = data;
                     roomCodeDisplay.textContent = data.room_code;
                     showView('room-view');
                     await joinRoomRealtime(data.room_code);
                     await saveUserCurrentRoom(data.room_code);
                     renderRoomUI();
+                } else {
+                    // Caso em que nem data nem error são retornados (improvável, mas seguro)
+                    throw new Error('Não foi possível obter os detalhes da sala após a criação.');
                 }
             } catch (err) {
-                console.error("Erro inesperado ao criar sala:", err);
-                showLobbyMessage("Ocorreu um erro inesperado. Tente novamente.", true);
+                console.error("Erro ao criar sala:", err.message);
+                showLobbyMessage(err.message || "Ocorreu um erro inesperado. Tente novamente.", true);
             } finally {
                 toggleLoading(false);
                 createRoomBtn.disabled = false;
@@ -1742,16 +1752,22 @@
             try {
                 const code = roomCodeInput.value.toUpperCase().trim();
                 if (!code) {
-                    showLobbyMessage('Por favor, insira um código.', true);
-                    return;
+                    throw new Error('Por favor, insira um código.');
                 }
-                const { data, error } = await sb.from('rooms').select('room_code, creator_id, game_started').eq('room_code', code).maybeSingle();
+
+                // Compete a chamada de DB com um timeout de 10 segundos
+                const { data, error } = await Promise.race([
+                    sb.from('rooms').select('room_code, creator_id, game_started').eq('room_code', code).maybeSingle(),
+                    timeout(10000, 'A busca pela sala demorou muito e foi cancelada.')
+                ]);
 
                 if (error) {
-                    showLobbyMessage(error.message, true);
-                } else if (data) {
+                    throw error; // Lança erros de DB
+                }
+
+                if (data) {
                     if (data.game_started) {
-                        showLobbyMessage('O jogo já começou nesta sala.', true);
+                        throw new Error('O jogo já começou nesta sala.');
                     } else {
                         currentRoom = data;
                         roomCodeDisplay.textContent = data.room_code;
@@ -1762,11 +1778,11 @@
                         renderRoomUI();
                     }
                 } else {
-                    showLobbyMessage('Sala não encontrada. Verifique o código.', true);
+                    throw new Error('Sala não encontrada. Verifique o código.');
                 }
             } catch (err) {
-                console.error("Erro inesperado ao entrar na sala:", err);
-                showLobbyMessage("Ocorreu um erro inesperado. Tente novamente.", true);
+                console.error("Erro ao entrar na sala:", err.message);
+                showLobbyMessage(err.message || "Ocorreu um erro inesperado. Tente novamente.", true);
             } finally {
                 toggleLoading(false);
                 submitButton.disabled = false;
@@ -1780,37 +1796,47 @@
             const isHost = currentUser && currentRoom && currentUser.id === currentRoom.creator_id;
 
             try {
-                // 1. Executa todas as operações de rede primeiro.
                 if (isHost && currentRoomChannel) {
-                    await currentRoomChannel.send({
-                        type: 'broadcast',
-                        event: 'host_left_and_closed_room'
-                    });
-                    const { error } = await sb.from('rooms').delete().eq('room_code', currentRoom.room_code);
+                    // Notifica outros jogadores que o anfitrião está saindo.
+                    await Promise.race([
+                        currentRoomChannel.send({ type: 'broadcast', event: 'host_left_and_closed_room' }),
+                        timeout(5000, 'A notificação de fechamento da sala demorou muito.')
+                    ]);
+
+                    // Tenta deletar a sala do banco de dados.
+                    const { error } = await Promise.race([
+                        sb.from('rooms').delete().eq('room_code', currentRoom.room_code),
+                        timeout(10000, 'A exclusão da sala demorou muito.')
+                    ]);
+
                     if (error) {
+                        // Mesmo que a exclusão falhe, o anfitrião ainda deve sair.
+                        // O erro é registrado, mas não impede a limpeza local.
                         console.error("Erro ao deletar a sala:", error.message);
-                        showToast(`Erro ao fechar a sala: ${error.message}`);
+                        showToast(`Erro de rede ao fechar a sala: ${error.message}`);
                     }
                 }
+
+                // Executa as operações de limpeza de estado local (não relacionadas à rede diretamente).
                 await leaveRoomRealtime();
                 await clearUserCurrentRoom();
 
             } catch (err) {
-                // Mesmo que ocorra um erro de rede, o bloco finally garantirá a limpeza da UI.
-                console.error("Erro de rede ao sair da sala:", err);
-                showLobbyMessage("Ocorreu um erro de rede ao sair da sala.", true);
+                // Captura erros das operações de rede (send, delete).
+                console.error("Erro de rede ao sair da sala:", err.message);
+                showToast(err.message); // Mostra o erro de timeout/rede para o usuário.
             } finally {
-                // 2. Garante que a limpeza do estado local e da UI ocorra independentemente do sucesso da rede.
+                // Este bloco agora é executado de forma confiável, independentemente de timeouts.
                 currentRoom = null;
                 gameStarted = false;
                 gameState = null;
-                presences = {}; // Limpa as presenças locais
+                presences = {};
 
                 document.getElementById('game-controls').innerHTML = '';
-                settingsBtn.classList.add('hidden'); // Garante que o botão de engrenagem seja escondido
+                settingsBtn.classList.add('hidden');
 
                 showView('lobby-view');
-                showLobbyMessage('', false); // Limpa qualquer mensagem de erro anterior do lobby
+                showLobbyMessage('', false);
 
                 toggleLoading(false);
                 leaveRoomBtn.disabled = false;
@@ -2123,6 +2149,7 @@
 
         // Expor utilitários de teste para permitir que o Playwright defina o estado interno do módulo
         window.testUtils = {
+            sb: sb, // Expor o cliente Supabase para mocking
             setState: (newState) => {
                 currentUser = newState.currentUser;
                 currentRoom = newState.currentRoom;

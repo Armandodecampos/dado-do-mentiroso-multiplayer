@@ -584,9 +584,9 @@
         const { createClient } = supabase;
         const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
             auth: {
-                // Impede que a sessão do usuário seja salva no localStorage.
-                // Isso resolve o problema de travamento ao recarregar com uma sessão inválida.
-                persistSession: false
+                // Salva a sessão do usuário para login automático.
+                persistSession: true,
+                autoRefreshToken: true,
             }
         });
 

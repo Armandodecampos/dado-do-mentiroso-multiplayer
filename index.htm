@@ -173,7 +173,7 @@
     </div>
 
     <!-- Container Principal (Aplica-se a Lobby e Auth) -->
-    <div id="main-container" class="w-full max-w-4xl p-10 bg-[#f3e9d2] border-4 border-[#4a2c2a] rounded-lg shadow-xl relative">
+    <div id="main-container" class="max-w-4xl p-10 bg-[#f3e9d2] border-4 border-[#4a2c2a] rounded-lg shadow-xl relative">
 
         <!-- Overlay de Carregamento -->
         <div id="loading-overlay" class="absolute inset-0 bg-[#f3e9d2] bg-opacity-75 flex items-center justify-center rounded-lg z-50 hidden">
@@ -706,20 +706,16 @@
 
         function setRoomViewMode(isFullScreen) {
             logoContainer.classList.toggle('hidden', isFullScreen);
+            // Esta função não deve mais alterar o layout do corpo da página,
+            // garantindo que o contêiner principal permaneça sempre centralizado.
             if (isFullScreen) {
-                // Remove as classes que centralizam
-                pageBody.classList.remove('flex', 'items-center', 'justify-center', 'min-h-screen');
-                // Remove estilos de "cartão" mas mantém a largura máxima
+                // Remove estilos de "cartão" para a visualização do jogo
                 mainContainer.classList.remove('p-10', 'rounded-lg', 'shadow-xl');
-                // Adiciona a classe para garantir que o contêiner ocupe toda a altura, sem preenchimento
-                mainContainer.classList.add('h-screen', 'w-full', 'p-0');
+                mainContainer.classList.add('h-screen', 'p-0'); // Ocupa a altura da tela, sem preenchimento
             } else {
-                // Adiciona de volta as classes para centralizar e estilizar o contêiner
-                pageBody.classList.add('flex', 'items-center', 'justify-center', 'min-h-screen');
-                // Adiciona de volta os estilos de "cartão"
+                // Adiciona de volta os estilos de "cartão" para o lobby/auth
                 mainContainer.classList.add('p-10', 'rounded-lg', 'shadow-xl');
-                // Remove as classes de tela cheia
-                mainContainer.classList.remove('h-screen', 'w-full', 'p-0');
+                mainContainer.classList.remove('h-screen', 'p-0');
             }
         }
 

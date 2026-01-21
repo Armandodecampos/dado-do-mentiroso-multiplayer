@@ -116,7 +116,7 @@
         }
     </style>
 </head>
-<body id="page-body" class="bg-[#3d2323] text-[#f3e9d2] flex items-center justify-center min-h-screen">
+<body id="page-body" class="bg-[#3d2323] text-[#f3e9d2] flex flex-col items-center justify-center min-h-screen">
 
     <!-- SVG Definitions for Dice -->
     <svg width="0" height="0" style="position:absolute">
@@ -186,7 +186,7 @@
         </div>
 
         <!-- #1: View de Autenticação -->
-        <div id="auth-view" class="text-[#4a2c2a]">
+        <div id="auth-view" class="text-[#4a2c2a] max-w-md mx-auto">
             <!-- Abas de Login / Cadastro -->
             <div id="auth-tabs-container" class="flex mb-4 border-b-2 border-[#4a2c2a]">
                 <button id="tab-login" class="flex-1 py-2 text-center font-bold transition-all duration-200 border-b-4 border-[#e5a938] text-opacity-100">Login</button>
@@ -253,7 +253,7 @@
         </div>
 
         <!-- #2: View do Lobby (Logado) -->
-        <div id="lobby-view" class="hidden text-[#4a2c2a]">
+        <div id="lobby-view" class="hidden text-[#4a2c2a] max-w-md mx-auto">
             <p id="welcome-message" class="text-center text-lg mb-6 font-bold"></p>
 
             <!-- Criar Sala -->
@@ -279,7 +279,7 @@
         </div>
 
         <!-- #5: View "Como Jogar" (NOVO) -->
-        <div id="how-to-play-view" class="hidden text-[#4a2c2a] prose max-w-none">
+        <div id="how-to-play-view" class="hidden text-[#4a2c2a] prose max-w-2xl mx-auto">
             <h2 class="text-3xl font-bold text-center mb-4 font-title">Como Jogar</h2>
 
             <h3>Objetivo</h3>

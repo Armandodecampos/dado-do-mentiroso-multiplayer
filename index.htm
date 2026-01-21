@@ -318,10 +318,10 @@
 
         <!-- #3: View da Sala (Dentro da Sala) -->
         <!-- "fixed" logic is handled inside game-view. room-view acts as a wrapper. -->
-        <div id="room-view" class="hidden relative h-full flex flex-col items-center text-[#f3e9d2]">
+        <div id="room-view" class="hidden relative h-full flex flex-col text-[#f3e9d2]">
             
             <!-- CONTEÚDO DO LOBBY (VISÍVEL ANTES DE INICIAR O JOGO) -->
-            <div id="lobby-wait-content" class="flex-1 p-4 overflow-y-auto max-w-2xl">
+            <div id="lobby-wait-content" class="flex-1 p-4 overflow-y-auto max-w-2xl mx-auto">
                 <h2 id="room-code-title" class="text-3xl text-center mb-4 font-title text-[#e5a938]">Código da Sala:</h2>
                 <p id="room-code-display" class="text-5xl font-mono font-bold text-center text-[#4a2c2a] bg-[#f3e9d2] rounded-lg py-4 mb-6 border-4 border-[#4a2c2a]"></p>
 
@@ -706,8 +706,10 @@
 
         function setRoomViewMode(isFullScreen) {
             logoContainer.classList.toggle('hidden', isFullScreen);
-            // Esta função não deve mais alterar o layout do corpo da página,
-            // garantindo que o contêiner principal permaneça sempre centralizado.
+            // Alterna as classes para garantir que o contêiner se expanda ou se contraia corretamente.
+            mainContainer.classList.toggle('max-w-4xl', !isFullScreen);
+            mainContainer.classList.toggle('w-full', isFullScreen);
+
             if (isFullScreen) {
                 // Remove estilos de "cartão" para a visualização do jogo
                 mainContainer.classList.remove('p-10', 'rounded-lg', 'shadow-xl');
@@ -733,6 +735,10 @@
 
             // Controla a visibilidade dos elementos com base no estado do jogo
             const showLobby = !gameStarted && !gameState?.gameWinner;
+
+            // Centraliza a lógica de alternância de visualização aqui
+            setRoomViewMode(!showLobby);
+
             if (showLobby) {
                 lobbyWaitContent.classList.remove('hidden');
                 gameView.classList.add('hidden');
@@ -1280,7 +1286,6 @@
             toggleLoading(true);
             try {
                 await leaveRoomRealtime();
-                setRoomViewMode(false); // Sai do modo de tela cheia
                 await sb.auth.signOut();
             } catch (err) {
                 console.error("Erro ao fazer logout:", err);
@@ -1714,7 +1719,6 @@
                     currentRoom = data;
                     roomCodeDisplay.textContent = data.room_code;
                     showView('room-view');
-                    setRoomViewMode(true);
                     await joinRoomRealtime(data.room_code);
                     await saveUserCurrentRoom(data.room_code);
                     renderRoomUI();
@@ -1752,7 +1756,6 @@
                         currentRoom = data;
                         roomCodeDisplay.textContent = data.room_code;
                         showView('room-view');
-                        setRoomViewMode(true);
                         joinRoomForm.reset();
                         await joinRoomRealtime(data.room_code);
                         await saveUserCurrentRoom(data.room_code);
@@ -1806,7 +1809,6 @@
                 document.getElementById('game-controls').innerHTML = '';
                 settingsBtn.classList.add('hidden'); // Garante que o botão de engrenagem seja escondido
 
-                setRoomViewMode(false);
                 showView('lobby-view');
                 showLobbyMessage('', false); // Limpa qualquer mensagem de erro anterior do lobby
 
@@ -2106,7 +2108,6 @@
                 else {
                     await leaveRoomRealtime();
                     currentUser = null;
-                    setRoomViewMode(false); // Garante que a visualização volte ao normal no logout
                     showView('auth-view');
                 }
             } catch (error) {
@@ -2120,18 +2121,18 @@
 
         window.addEventListener('beforeunload', () => { if (currentRoomChannel) leaveRoomRealtime(); });
 
-        // Expor funções e estado para testes do Playwright
+        // Expor utilitários de teste para permitir que o Playwright defina o estado interno do módulo
         window.testUtils = {
-            setCurrentUser: (user) => currentUser = user,
-            setCurrentRoom: (room) => currentRoom = room,
-            setCurrentRoomChannel: (channel) => currentRoomChannel = channel,
-            setGameStarted: (started) => gameStarted = started,
-            setGameState: (state) => gameState = state,
-            setPresences: (p) => presences = p, getGameState: () => gameState,
-            renderRoomUI: () => renderRoomUI(),
-            renderGameUI: () => renderGameUI(),
-            showView: (viewId) => showView(viewId),
-            setRoomViewMode: (isFullScreen) => setRoomViewMode(isFullScreen),
+            setState: (newState) => {
+                currentUser = newState.currentUser;
+                currentRoom = newState.currentRoom;
+                gameStarted = newState.gameStarted;
+                gameState = newState.gameState;
+                presences = newState.presences;
+            },
+            showView: showView,
+            renderRoomUI: renderRoomUI,
+            renderGameUI: renderGameUI // Expor a função de renderização do jogo
         };
     </script>
 </body>

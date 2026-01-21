@@ -9,7 +9,7 @@
     <!-- Carrega as fontes do Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=IM+Fell+English+SC&family=Cinzel+Decorative:wght@700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Merriweather:wght@400;700&family=Cinzel+Decorative:wght@700&display=swap" rel="stylesheet">
     <!-- Carrega o cliente Supabase -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
@@ -62,7 +62,7 @@
             animation: dice-explode 0.6s ease-in-out forwards;
         }
         body {
-            font-family: 'IM Fell English SC', serif;
+            font-family: 'Merriweather', serif;
         }
         .font-title {
             font-family: 'Cinzel Decorative', cursive;
@@ -993,7 +993,7 @@
                 const bidHtml = `<p class="text-sm font-semibold ${isSelf ? 'text-blue-800' : 'text-gray-800'}">${bidderName}:</p>
                                      <div class="flex items-center gap-1 mt-1">
                                          <span class="text-gray-600 text-sm">Apostou: </span>
-                                         <span class="font-bold text-lg">${item.quantity} x</span>
+                                         <span class="font-bold text-lg text-gray-900">${item.quantity} x</span>
                                          ${diceSVGTags[item.face]}
                                      </div>`;
                 msgDiv.innerHTML = bidHtml;

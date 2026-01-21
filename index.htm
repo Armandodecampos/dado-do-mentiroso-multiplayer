@@ -1827,6 +1827,7 @@
                 document.getElementById('game-controls').innerHTML = '';
                 settingsBtn.classList.add('hidden');
 
+                setRoomViewMode(false); // GARANTE QUE A VIEW VOLTE AO ESTILO DE CARTÃO
                 showView('lobby-view');
                 showLobbyMessage('', false);
 

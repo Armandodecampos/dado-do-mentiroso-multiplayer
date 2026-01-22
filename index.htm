@@ -991,6 +991,8 @@
                 }
 
                 // O botão OK agora é sempre visível para todos os jogadores na tela de resultados.
+                const isHost = currentUser && currentRoom && currentUser.id === currentRoom.creator_id;
+                closeResultBtn.textContent = isHost ? 'Próxima Rodada' : 'OK';
                 closeResultBtn.classList.remove('hidden');
 
                 roundResultOverlay.classList.remove('hidden');
@@ -1640,76 +1642,76 @@
 
                     // --- NOVA LÓGICA DE PROGRESSÃO AUTOMÁTICA DA RODADA (APENAS HOST) ---
                     if (isHost && gameState?.roundInfo?.phase === 'reveal') {
-                        setTimeout(async () => {
-                             try {
-                                // 1. Remove jogadores com 0 dados.
-                                const playersForNextRound = { ...gameState.players };
-                                let newTurnOrder = [...gameState.turnOrder];
-                                for (const playerId in playersForNextRound) {
-                                    if (playersForNextRound[playerId].diceCount <= 0) {
-                                        delete playersForNextRound[playerId];
-                                        newTurnOrder = newTurnOrder.filter(id => id !== playerId);
-                                    }
-                                }
+                        //setTimeout(async () => {
+                        //     try {
+                        //        // 1. Remove jogadores com 0 dados.
+                        //        const playersForNextRound = { ...gameState.players };
+                        //        let newTurnOrder = [...gameState.turnOrder];
+                        //        for (const playerId in playersForNextRound) {
+                        //            if (playersForNextRound[playerId].diceCount <= 0) {
+                        //                delete playersForNextRound[playerId];
+                        //                newTurnOrder = newTurnOrder.filter(id => id !== playerId);
+                        //            }
+                        //        }
 
-                                // 2. Verifica se há um vencedor.
-                                if (newTurnOrder.length < 2) {
-                                    const winnerId = newTurnOrder.length === 1 ? newTurnOrder[0] : null;
-                                    const finalGameState = {
-                                        ...gameState,
-                                        players: playersForNextRound, // Mantém os jogadores finais
-                                        gameWinner: winnerId,
-                                    };
-                                    // Transmite o estado de vencedor final. `gameStarted` se torna `false`.
-                                    await updateAndBroadcastGameState(finalGameState, false, 'winner_declared');
-                                } else {
-                                    // 3. Se não houver vencedor, prepara a próxima rodada.
-                                    let nextPlayerId = gameState.roundInfo.loser;
-                                    if (!newTurnOrder.includes(nextPlayerId)) {
-                                        const originalLoserIndex = gameState.turnOrder.indexOf(gameState.roundInfo.loser);
-                                        if (originalLoserIndex !== -1) {
-                                            for (let i = 0; i < gameState.turnOrder.length; i++) {
-                                                const potentialNextPlayerIndex = (originalLoserIndex + i) % gameState.turnOrder.length;
-                                                const potentialNextPlayerId = gameState.turnOrder[potentialNextPlayerIndex];
-                                                if (newTurnOrder.includes(potentialNextPlayerId)) {
-                                                    nextPlayerId = potentialNextPlayerId;
-                                                    break;
-                                                }
-                                            }
-                                        }
-                                        if (!newTurnOrder.includes(nextPlayerId)) {
-                                            nextPlayerId = newTurnOrder[0];
-                                        }
-                                    }
+                        //        // 2. Verifica se há um vencedor.
+                        //        if (newTurnOrder.length < 2) {
+                        //            const winnerId = newTurnOrder.length === 1 ? newTurnOrder[0] : null;
+                        //            const finalGameState = {
+                        //                ...gameState,
+                        //                players: playersForNextRound, // Mantém os jogadores finais
+                        //                gameWinner: winnerId,
+                        //            };
+                        //            // Transmite o estado de vencedor final. `gameStarted` se torna `false`.
+                        //            await updateAndBroadcastGameState(finalGameState, false, 'winner_declared');
+                        //        } else {
+                        //            // 3. Se não houver vencedor, prepara a próxima rodada.
+                        //            let nextPlayerId = gameState.roundInfo.loser;
+                        //            if (!newTurnOrder.includes(nextPlayerId)) {
+                        //                const originalLoserIndex = gameState.turnOrder.indexOf(gameState.roundInfo.loser);
+                        //                if (originalLoserIndex !== -1) {
+                        //                    for (let i = 0; i < gameState.turnOrder.length; i++) {
+                        //                        const potentialNextPlayerIndex = (originalLoserIndex + i) % gameState.turnOrder.length;
+                        //                        const potentialNextPlayerId = gameState.turnOrder[potentialNextPlayerIndex];
+                        //                        if (newTurnOrder.includes(potentialNextPlayerId)) {
+                        //                            nextPlayerId = potentialNextPlayerId;
+                        //                            break;
+                        //                        }
+                        //                    }
+                        //                }
+                        //                if (!newTurnOrder.includes(nextPlayerId)) {
+                        //                    nextPlayerId = newTurnOrder[0];
+                        //                }
+                        //            }
 
-                                    const nextRoundState = {
-                                        ...gameState,
-                                        players: playersForNextRound,
-                                        turnOrder: newTurnOrder,
-                                        currentBid: null,
-                                        lastBidder: null,
-                                        turn: 1,
-                                        round: gameState.round + 1,
-                                        currentPlayer: nextPlayerId,
-                                        roundInfo: { reveal: false, message: '' },
-                                        bidHistory: [],
-                                    };
+                        //            const nextRoundState = {
+                        //                ...gameState,
+                        //                players: playersForNextRound,
+                        //                turnOrder: newTurnOrder,
+                        //                currentBid: null,
+                        //                lastBidder: null,
+                        //                turn: 1,
+                        //                round: gameState.round + 1,
+                        //                currentPlayer: nextPlayerId,
+                        //                roundInfo: { reveal: false, message: '' },
+                        //                bidHistory: [],
+                        //            };
 
-                                    const nextPlayerName = presences[nextRoundState.currentPlayer]?.[0].name || presences[nextRoundState.currentPlayer]?.[0].email;
-                                    nextRoundState.currentTurnMessage = `É a vez de ${nextPlayerName}.`;
-                                    nextRoundState.bidHistory.push({ type: 'status', message: `Rodada ${nextRoundState.round} começou!`});
+                        //            const nextPlayerName = presences[nextRoundState.currentPlayer]?.[0].name || presences[nextRoundState.currentPlayer]?.[0].email;
+                        //            nextRoundState.currentTurnMessage = `É a vez de ${nextPlayerName}.`;
+                        //            nextRoundState.bidHistory.push({ type: 'status', message: `Rodada ${nextRoundState.round} começou!`});
 
-                                    for (const playerId in nextRoundState.players) {
-                                        const player = nextRoundState.players[playerId];
-                                        player.dice = Array.from({ length: player.diceCount }, () => Math.floor(Math.random() * 6) + 1);
-                                    }
-                                    await updateAndBroadcastGameState(nextRoundState, true);
-                                }
-                            } catch (error) {
-                                console.error("Erro ao processar a próxima rodada/vencedor:", error);
-                                showToast("Erro de rede. Tente novamente.");
-                            }
-                        }, 3000); // Atraso de 3 segundos após a exibição dos resultados
+                        //            for (const playerId in nextRoundState.players) {
+                        //                const player = nextRoundState.players[playerId];
+                        //                player.dice = Array.from({ length: player.diceCount }, () => Math.floor(Math.random() * 6) + 1);
+                        //            }
+                        //            await updateAndBroadcastGameState(nextRoundState, true);
+                        //        }
+                        //    } catch (error) {
+                        //        console.error("Erro ao processar a próxima rodada/vencedor:", error);
+                        //        showToast("Erro de rede. Tente novamente.");
+                        //    }
+                        //}, 3000); // Atraso de 3 segundos após a exibição dos resultados
                     }
                 } finally {
                     // Como a UI foi renderizada, oculta o overlay de carregamento.
@@ -1717,6 +1719,77 @@
                     toggleLoading(false);
                 }
             });
+
+            async function startNextRoundOrDeclareWinner() {
+                try {
+                    // 1. Remove jogadores com 0 dados.
+                    const playersForNextRound = { ...gameState.players };
+                    let newTurnOrder = [...gameState.turnOrder];
+                    for (const playerId in playersForNextRound) {
+                        if (playersForNextRound[playerId].diceCount <= 0) {
+                            delete playersForNextRound[playerId];
+                            newTurnOrder = newTurnOrder.filter(id => id !== playerId);
+                        }
+                    }
+
+                    // 2. Verifica se há um vencedor.
+                    if (newTurnOrder.length < 2) {
+                        const winnerId = newTurnOrder.length === 1 ? newTurnOrder[0] : null;
+                        const finalGameState = {
+                            ...gameState,
+                            players: playersForNextRound, // Mantém os jogadores finais
+                            gameWinner: winnerId,
+                        };
+                        // Transmite o estado de vencedor final. `gameStarted` se torna `false`.
+                        await updateAndBroadcastGameState(finalGameState, false, 'winner_declared');
+                    } else {
+                        // 3. Se não houver vencedor, prepara a próxima rodada.
+                        let nextPlayerId = gameState.roundInfo.loser;
+                        if (!newTurnOrder.includes(nextPlayerId)) {
+                            const originalLoserIndex = gameState.turnOrder.indexOf(gameState.roundInfo.loser);
+                            if (originalLoserIndex !== -1) {
+                                for (let i = 0; i < gameState.turnOrder.length; i++) {
+                                    const potentialNextPlayerIndex = (originalLoserIndex + i) % gameState.turnOrder.length;
+                                    const potentialNextPlayerId = gameState.turnOrder[potentialNextPlayerIndex];
+                                    if (newTurnOrder.includes(potentialNextPlayerId)) {
+                                        nextPlayerId = potentialNextPlayerId;
+                                        break;
+                                    }
+                                }
+                            }
+                            if (!newTurnOrder.includes(nextPlayerId)) {
+                                nextPlayerId = newTurnOrder[0];
+                            }
+                        }
+
+                        const nextRoundState = {
+                            ...gameState,
+                            players: playersForNextRound,
+                            turnOrder: newTurnOrder,
+                            currentBid: null,
+                            lastBidder: null,
+                            turn: 1,
+                            round: gameState.round + 1,
+                            currentPlayer: nextPlayerId,
+                            roundInfo: { reveal: false, message: '' },
+                            bidHistory: [],
+                        };
+
+                        const nextPlayerName = presences[nextRoundState.currentPlayer]?.[0].name || presences[nextRoundState.currentPlayer]?.[0].email;
+                        nextRoundState.currentTurnMessage = `É a vez de ${nextPlayerName}.`;
+                        nextRoundState.bidHistory.push({ type: 'status', message: `Rodada ${nextRoundState.round} começou!`});
+
+                        for (const playerId in nextRoundState.players) {
+                            const player = nextRoundState.players[playerId];
+                            player.dice = Array.from({ length: player.diceCount }, () => Math.floor(Math.random() * 6) + 1);
+                        }
+                        await updateAndBroadcastGameState(nextRoundState, true);
+                    }
+                } catch (error) {
+                    console.error("Erro ao processar a próxima rodada/vencedor:", error);
+                    showToast("Erro de rede. Tente novamente.");
+                }
+            }
 
             // Ouvinte para o evento de fechamento da sala pelo anfitrião
             currentRoomChannel.on('broadcast', { event: 'host_left_and_closed_room' }, () => {
@@ -2075,10 +2148,22 @@
         });
 
         closeResultBtn.addEventListener('click', () => {
+            // Ação imediata: o anfitrião inicia a próxima rodada
+            const isHost = currentUser && currentRoom && currentUser.id === currentRoom.creator_id;
+            if (isHost) {
+                // Desabilita o botão para evitar cliques duplos enquanto a próxima rodada é processada
+                closeResultBtn.disabled = true;
+                startNextRoundOrDeclareWinner();
+            }
+
+            // Ação visual: todos os jogadores fecham o overlay
             const roundResultOverlay = document.getElementById('round-result-overlay');
             roundResultOverlay.classList.add('opacity-0');
             setTimeout(() => {
                 roundResultOverlay.classList.add('hidden');
+                 if (isHost) {
+                    closeResultBtn.disabled = false; // Reabilita o botão após a transição
+                }
             }, 500); // Aguarda a transição de fade-out
         });
 

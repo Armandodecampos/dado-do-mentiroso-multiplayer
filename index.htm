@@ -858,9 +858,15 @@
         }
 
         function renderGameUI() {
+            const roundResultOverlay = document.getElementById('round-result-overlay');
+            // Se o overlay de resultado estiver visível, não renderize o resto da UI do jogo por cima.
+            // O usuário deve dispensá-lo primeiro. A nova renderização acontecerá quando o botão 'OK' for clicado.
+            if (!roundResultOverlay.classList.contains('hidden')) {
+                return;
+            }
+
             // Garante que todos os overlays do jogo estejam escondidos por padrão.
             // Eles serão reexibidos apenas se o estado atual do jogo o justificar.
-            document.getElementById('round-result-overlay').classList.add('hidden');
             document.getElementById('game-over-overlay').classList.add('hidden');
             roundActionOverlay.classList.add('hidden');
 

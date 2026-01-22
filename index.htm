@@ -421,7 +421,7 @@
                         <div id="all-dice-reveal" class="mb-6 p-4 rounded-lg bg-[#3d2323] max-h-64 overflow-y-auto w-full space-y-3">
                             <!-- Dados de todos os jogadores serão mostrados aqui -->
                         </div>
-                        <button id="next-round-btn" class="bg-[#e5a938] text-[#4a2c2a] font-bold py-3 px-8 rounded-lg transition-all duration-300 transform hover:scale-110 shadow-lg hover:shadow-[#e5a938]/50 text-lg border-b-4 border-[#c08e2a]">Próxima Rodada</button>
+                        <button id="close-result-btn" class="bg-[#e5a938] text-[#4a2c2a] font-bold py-3 px-8 rounded-lg transition-all duration-300 transform hover:scale-110 shadow-lg hover:shadow-[#e5a938]/50 text-lg border-b-4 border-[#c08e2a]">OK</button>
                     </div>
                 </div>
 
@@ -648,7 +648,7 @@
         const bidBtn = document.getElementById('bid-btn');
         const challengeBtn = document.getElementById('challenge-btn');
         const exactBtn = document.getElementById('exact-btn');
-        const nextRoundBtn = document.getElementById('next-round-btn');
+        const closeResultBtn = document.getElementById('close-result-btn');
         const backToLobbyBtn = document.getElementById('back-to-lobby-btn');
         // Overlays e Sons para Animação
         const roundActionOverlay = document.getElementById('round-action-overlay');
@@ -984,16 +984,8 @@
                     allDiceReveal.innerHTML += `<div class="${containerClasses}"><p class="font-bold text-white mb-2">${playerName}:</p><div class="flex justify-center gap-2">${diceHtml}</div></div>`;
                 }
 
-                const isHost = currentUser && currentRoom && currentUser.id === currentRoom.creator_id;
-                nextRoundBtn.classList.toggle('hidden', !isHost);
-
-                // Lógica para alterar o texto do botão na rodada final
-                const remainingPlayersWithDice = Object.values(players).filter(p => p.diceCount > 0).length;
-                if (remainingPlayersWithDice < 2) {
-                    nextRoundBtn.textContent = 'Ver Vencedor';
-                } else {
-                    nextRoundBtn.textContent = 'Próxima Rodada';
-                }
+                // O botão OK agora é sempre visível para todos os jogadores na tela de resultados.
+                closeResultBtn.classList.remove('hidden');
 
                 roundResultOverlay.classList.remove('hidden');
 
@@ -1636,7 +1628,82 @@
                             // A lógica do vencedor foi movida para o manipulador de eventos 'nextRoundBtn'.
                             // Este bloco agora apenas transmite o resultado da rodada.
                             await updateAndBroadcastGameState(revealGameState, true, 'round_reveal');
+
                         }, 2500); // Atraso de 2.5 segundos para a animação
+                    }
+
+                    // --- NOVA LÓGICA DE PROGRESSÃO AUTOMÁTICA DA RODADA (APENAS HOST) ---
+                    if (isHost && gameState?.roundInfo?.phase === 'reveal') {
+                        setTimeout(async () => {
+                             try {
+                                // 1. Remove jogadores com 0 dados.
+                                const playersForNextRound = { ...gameState.players };
+                                let newTurnOrder = [...gameState.turnOrder];
+                                for (const playerId in playersForNextRound) {
+                                    if (playersForNextRound[playerId].diceCount <= 0) {
+                                        delete playersForNextRound[playerId];
+                                        newTurnOrder = newTurnOrder.filter(id => id !== playerId);
+                                    }
+                                }
+
+                                // 2. Verifica se há um vencedor.
+                                if (newTurnOrder.length < 2) {
+                                    const winnerId = newTurnOrder.length === 1 ? newTurnOrder[0] : null;
+                                    const finalGameState = {
+                                        ...gameState,
+                                        players: playersForNextRound, // Mantém os jogadores finais
+                                        gameWinner: winnerId,
+                                    };
+                                    // Transmite o estado de vencedor final. `gameStarted` se torna `false`.
+                                    await updateAndBroadcastGameState(finalGameState, false, 'winner_declared');
+                                } else {
+                                    // 3. Se não houver vencedor, prepara a próxima rodada.
+                                    let nextPlayerId = gameState.roundInfo.loser;
+                                    if (!newTurnOrder.includes(nextPlayerId)) {
+                                        const originalLoserIndex = gameState.turnOrder.indexOf(gameState.roundInfo.loser);
+                                        if (originalLoserIndex !== -1) {
+                                            for (let i = 0; i < gameState.turnOrder.length; i++) {
+                                                const potentialNextPlayerIndex = (originalLoserIndex + i) % gameState.turnOrder.length;
+                                                const potentialNextPlayerId = gameState.turnOrder[potentialNextPlayerIndex];
+                                                if (newTurnOrder.includes(potentialNextPlayerId)) {
+                                                    nextPlayerId = potentialNextPlayerId;
+                                                    break;
+                                                }
+                                            }
+                                        }
+                                        if (!newTurnOrder.includes(nextPlayerId)) {
+                                            nextPlayerId = newTurnOrder[0];
+                                        }
+                                    }
+
+                                    const nextRoundState = {
+                                        ...gameState,
+                                        players: playersForNextRound,
+                                        turnOrder: newTurnOrder,
+                                        currentBid: null,
+                                        lastBidder: null,
+                                        turn: 1,
+                                        round: gameState.round + 1,
+                                        currentPlayer: nextPlayerId,
+                                        roundInfo: { reveal: false, message: '' },
+                                        bidHistory: [],
+                                    };
+
+                                    const nextPlayerName = presences[nextRoundState.currentPlayer]?.[0].name || presences[nextRoundState.currentPlayer]?.[0].email;
+                                    nextRoundState.currentTurnMessage = `É a vez de ${nextPlayerName}.`;
+                                    nextRoundState.bidHistory.push({ type: 'status', message: `Rodada ${nextRoundState.round} começou!`});
+
+                                    for (const playerId in nextRoundState.players) {
+                                        const player = nextRoundState.players[playerId];
+                                        player.dice = Array.from({ length: player.diceCount }, () => Math.floor(Math.random() * 6) + 1);
+                                    }
+                                    await updateAndBroadcastGameState(nextRoundState, true);
+                                }
+                            } catch (error) {
+                                console.error("Erro ao processar a próxima rodada/vencedor:", error);
+                                showToast("Erro de rede. Tente novamente.");
+                            }
+                        }, 3000); // Atraso de 3 segundos após a exibição dos resultados
                     }
                 } finally {
                     // Como a UI foi renderizada, oculta o overlay de carregamento.
@@ -1991,96 +2058,6 @@
             await updateAndBroadcastGameState(updatedGameState, true);
         });
 
-        nextRoundBtn.addEventListener('click', async () => {
-            if (!gameState || !gameState.roundInfo.loser) return;
-
-            // Apenas o anfitrião envia a atualização para evitar corridas.
-            if (currentUser.id !== currentRoom.creator_id) {
-                console.log("Apenas o anfitrião pode iniciar a próxima rodada.");
-                return;
-            }
-            toggleLoading(true); // Mostra o carregamento
-
-            try {
-                // 1. Remove jogadores com 0 dados.
-                const playersForNextRound = { ...gameState.players };
-                let newTurnOrder = [...gameState.turnOrder];
-                for (const playerId in playersForNextRound) {
-                    if (playersForNextRound[playerId].diceCount <= 0) {
-                        delete playersForNextRound[playerId];
-                        newTurnOrder = newTurnOrder.filter(id => id !== playerId);
-                    }
-                }
-
-                // 2. Verifica se há um vencedor.
-                if (newTurnOrder.length < 2) {
-                    const winnerId = newTurnOrder.length === 1 ? newTurnOrder[0] : null;
-                    const finalGameState = {
-                        ...gameState,
-                        players: playersForNextRound, // Mantém os jogadores finais
-                        gameWinner: winnerId,
-                    };
-                    // Transmite o estado de vencedor final. `gameStarted` se torna `false`.
-                    await updateAndBroadcastGameState(finalGameState, false, 'winner_declared');
-                } else {
-                    // 3. Se não houver vencedor, prepara a próxima rodada.
-                    // CORREÇÃO: Determina o próximo jogador de forma segura.
-                    let nextPlayerId = gameState.roundInfo.loser;
-                    // Verifica se o perdedor ainda está no jogo (não saiu nem ficou sem dados).
-                    if (!newTurnOrder.includes(nextPlayerId)) {
-                        // Se o perdedor saiu, encontra o próximo jogador válido na ordem de turno original.
-                        const originalLoserIndex = gameState.turnOrder.indexOf(gameState.roundInfo.loser);
-                        if (originalLoserIndex !== -1) {
-                            // Procura a partir da posição do perdedor na ordem de turno antiga.
-                            for (let i = 0; i < gameState.turnOrder.length; i++) {
-                                const potentialNextPlayerIndex = (originalLoserIndex + i) % gameState.turnOrder.length;
-                                const potentialNextPlayerId = gameState.turnOrder[potentialNextPlayerIndex];
-                                if (newTurnOrder.includes(potentialNextPlayerId)) {
-                                    nextPlayerId = potentialNextPlayerId;
-                                    break; // Encontrou um jogador válido.
-                                }
-                            }
-                        }
-                        // Se, por algum motivo, ninguém for encontrado (improvável), atribui o primeiro jogador ativo.
-                        if (!newTurnOrder.includes(nextPlayerId)) {
-                            nextPlayerId = newTurnOrder[0];
-                        }
-                    }
-
-                    const nextRoundState = {
-                        ...gameState,
-                        players: playersForNextRound,
-                        turnOrder: newTurnOrder,
-                        currentBid: null,
-                        lastBidder: null,
-                        turn: 1,
-                        round: gameState.round + 1,
-                        currentPlayer: nextPlayerId, // Usa o ID do jogador determinado de forma segura
-                        roundInfo: { reveal: false, message: '' },
-                        bidHistory: [],
-                    };
-
-                    const nextPlayerName = presences[nextRoundState.currentPlayer]?.[0].name || presences[nextRoundState.currentPlayer]?.[0].email;
-                    nextRoundState.currentTurnMessage = `É a vez de ${nextPlayerName}.`;
-                    nextRoundState.bidHistory.push({ type: 'status', message: `Rodada ${nextRoundState.round} começou!`});
-
-                    // Rola novos dados para os jogadores restantes.
-                    for (const playerId in nextRoundState.players) {
-                        const player = nextRoundState.players[playerId];
-                        player.dice = Array.from({ length: player.diceCount }, () => Math.floor(Math.random() * 6) + 1);
-                    }
-                    await updateAndBroadcastGameState(nextRoundState, true);
-                }
-            } catch (error) {
-                console.error("Erro ao processar a próxima rodada/vencedor:", error);
-                showToast("Erro de rede. Tente novamente.");
-            } finally {
-                // O carregamento será ocultado pelo `game_state_update` listener,
-                // mas adicionamos um fallback para garantir.
-                setTimeout(() => toggleLoading(false), 500);
-            }
-        });
-
         backToLobbyBtn.addEventListener('click', async () => {
             leaveRoomBtn.click();
         });
@@ -2089,6 +2066,14 @@
             if (currentUser && currentRoom && currentUser.id === currentRoom.creator_id) {
                 await updateAndBroadcastGameState(null, false);
             }
+        });
+
+        closeResultBtn.addEventListener('click', () => {
+            const roundResultOverlay = document.getElementById('round-result-overlay');
+            roundResultOverlay.classList.add('opacity-0');
+            setTimeout(() => {
+                roundResultOverlay.classList.add('hidden');
+            }, 500); // Aguarda a transição de fade-out
         });
 
         // --- 7. INICIALIZAÇÃO E AUTENTICAÇÃO ---

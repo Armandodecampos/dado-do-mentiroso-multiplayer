@@ -2020,6 +2020,29 @@
                     await updateAndBroadcastGameState(finalGameState, false, 'winner_declared');
                 } else {
                     // 3. Se não houver vencedor, prepara a próxima rodada.
+                    // CORREÇÃO: Determina o próximo jogador de forma segura.
+                    let nextPlayerId = gameState.roundInfo.loser;
+                    // Verifica se o perdedor ainda está no jogo (não saiu nem ficou sem dados).
+                    if (!newTurnOrder.includes(nextPlayerId)) {
+                        // Se o perdedor saiu, encontra o próximo jogador válido na ordem de turno original.
+                        const originalLoserIndex = gameState.turnOrder.indexOf(gameState.roundInfo.loser);
+                        if (originalLoserIndex !== -1) {
+                            // Procura a partir da posição do perdedor na ordem de turno antiga.
+                            for (let i = 0; i < gameState.turnOrder.length; i++) {
+                                const potentialNextPlayerIndex = (originalLoserIndex + i) % gameState.turnOrder.length;
+                                const potentialNextPlayerId = gameState.turnOrder[potentialNextPlayerIndex];
+                                if (newTurnOrder.includes(potentialNextPlayerId)) {
+                                    nextPlayerId = potentialNextPlayerId;
+                                    break; // Encontrou um jogador válido.
+                                }
+                            }
+                        }
+                        // Se, por algum motivo, ninguém for encontrado (improvável), atribui o primeiro jogador ativo.
+                        if (!newTurnOrder.includes(nextPlayerId)) {
+                            nextPlayerId = newTurnOrder[0];
+                        }
+                    }
+
                     const nextRoundState = {
                         ...gameState,
                         players: playersForNextRound,
@@ -2028,7 +2051,7 @@
                         lastBidder: null,
                         turn: 1,
                         round: gameState.round + 1,
-                        currentPlayer: gameState.roundInfo.loser,
+                        currentPlayer: nextPlayerId, // Usa o ID do jogador determinado de forma segura
                         roundInfo: { reveal: false, message: '' },
                         bidHistory: [],
                     };

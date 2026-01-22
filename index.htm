@@ -2079,6 +2079,10 @@
             roundResultOverlay.classList.add('opacity-0');
             setTimeout(() => {
                 roundResultOverlay.classList.add('hidden');
+                // Força uma nova renderização da UI para sincronizar com o estado do jogo mais recente
+                // que foi atualizado em segundo plano.
+                renderRoomUI();
+                renderGameUI();
             }, 500); // Aguarda a transição de fade-out
         });
 

@@ -837,7 +837,7 @@
                 playerIds.sort();
                 const newGameState = createInitialGameState(playerIds, playerIds[0]);
                 newGameState.turnOrder = playerIds;
-                const firstPlayerName = presences[newGameState.currentPlayer]?.[0].name || presences[newGameState.currentPlayer]?.[0].email;
+                const firstPlayerName = presences[newGameState.currentPlayer]?.[0]?.name || presences[newGameState.currentPlayer]?.[0]?.email || 'Jogador';
                 newGameState.currentTurnMessage = `É a vez de ${firstPlayerName}.`;
 
                 for (const playerId in newGameState.players) {

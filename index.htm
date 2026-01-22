@@ -851,8 +851,8 @@
             } catch (err) {
                 console.error("Erro ao iniciar o jogo:", err);
                 showLobbyMessage(err.message, true);
-            } finally {
-                // Garante que o carregamento seja sempre ocultado, mesmo que o broadcast falhe.
+                // Se ocorrer um erro, esconde o carregamento.
+                // Caso contrário, o ouvinte de 'game_state_update' irá escondê-lo.
                 toggleLoading(false);
             }
         }
@@ -1037,6 +1037,9 @@
 
             // 5. Atualiza os dados do jogador atual
             myDiceDisplay.innerHTML = '';
+            // Cláusula de guarda: Renderiza os dados apenas se o jogador estiver
+            // ativo no estado do jogo. Isso evita erros se a UI for renderizada
+            // para um jogador que acabou de sair ou foi eliminado.
             if (myPlayerState) {
                 // A animação e o som devem ocorrer apenas quando os dados são "rolados",
                 // ou seja, no início de uma nova rodada (quando o turno é 1).
@@ -1556,89 +1559,90 @@
 
             // Ouvinte para ATUALIZAÇÕES GERAIS DO JOGO
             currentRoomChannel.on('broadcast', { event: 'game_state_update' }, ({ payload }) => {
-                gameStarted = payload.gameStarted;
-                gameState = payload.gameState; // Pode ser nulo se o jogo terminou
+                try {
+                    gameStarted = payload.gameStarted;
+                    gameState = payload.gameState; // Pode ser nulo se o jogo terminou
 
-                // Lógica adicional para tratar o motivo do fim do jogo
-                if (payload.reason === 'not_enough_players') {
-                    showToast("O jogo terminou por falta de jogadores.");
-                }
+                    // Lógica adicional para tratar o motivo do fim do jogo
+                    if (payload.reason === 'not_enough_players') {
+                        showToast("O jogo terminou por falta de jogadores.");
+                    }
 
-                renderRoomUI(); // Sempre renderiza a UI da sala (que mostrará o lobby se gameStarted for falso)
-                // Renderiza a UI do jogo se houver um estado de jogo. Isso é crucial para
-                // exibir a tela de "fim de jogo" mesmo quando gameStarted é falso.
-                if (payload.gameState) {
-                    renderGameUI();
-                }
+                    renderRoomUI(); // Sempre renderiza a UI da sala (que mostrará o lobby se gameStarted for falso)
+                    // Renderiza a UI do jogo se houver um estado de jogo. Isso é crucial para
+                    // exibir a tela de "fim de jogo" mesmo quando gameStarted é falso.
+                    if (payload.gameState) {
+                        renderGameUI();
+                    }
 
-                // --- LÓGICA DE REVELAÇÃO COM ATRASO (APENAS HOST) ---
-                const isHost = currentUser && currentRoom && currentUser.id === currentRoom.creator_id;
-                const currentPhase = gameState?.roundInfo?.phase;
+                    // --- LÓGICA DE REVELAÇÃO COM ATRASO (APENAS HOST) ---
+                    const isHost = currentUser && currentRoom && currentUser.id === currentRoom.creator_id;
+                    const currentPhase = gameState?.roundInfo?.phase;
 
-                if (isHost && (currentPhase === 'challenged' || currentPhase === 'exact_bid')) {
-                    setTimeout(async () => {
-                        const { players, currentBid, roundInfo } = gameState;
-                        const actionTaker = roundInfo.actionTaker;
-                        const bidder = roundInfo.bidder;
+                    if (isHost && (currentPhase === 'challenged' || currentPhase === 'exact_bid')) {
+                        setTimeout(async () => {
+                            const { players, currentBid, roundInfo } = gameState;
+                            const actionTaker = roundInfo.actionTaker;
+                            const bidder = roundInfo.bidder;
 
-                        const actualQuantity = countDice(currentBid.face, players);
-                        const allDice = Object.values(players).flatMap(p => p.dice.map(d => ({ playerId: p.id, face: d })));
+                            const actualQuantity = countDice(currentBid.face, players);
+                            const allDice = Object.values(players).flatMap(p => p.dice.map(d => ({ playerId: p.id, face: d })));
 
-                        let loser, roundMessage;
-                        let losers = [];
-                        const updatedPlayers = JSON.parse(JSON.stringify(players));
+                            let loser, roundMessage;
+                            let losers = [];
+                            const updatedPlayers = JSON.parse(JSON.stringify(players));
 
-                        const actionTakerName = presences[actionTaker]?.[0]?.name || presences[actionTaker]?.[0]?.email;
-                        const bidderName = presences[bidder]?.[0]?.name || presences[bidder]?.[0]?.email;
+                            const actionTakerName = presences[actionTaker]?.[0]?.name || presences[actionTaker]?.[0]?.email;
+                            const bidderName = presences[bidder]?.[0]?.name || presences[bidder]?.[0]?.email;
 
-                        if (currentPhase === 'challenged') {
-                            const bidWasCorrect = actualQuantity >= currentBid.quantity;
-                            loser = bidWasCorrect ? actionTaker : bidder;
-                            losers = [loser];
-                            updatedPlayers[loser].diceCount = Math.max(0, updatedPlayers[loser].diceCount - 1);
-                            roundMessage = bidWasCorrect ?
-                                `O lance era VERDADEIRO! Havia ${actualQuantity} dados de face ${currentBid.face}. ${actionTakerName} perde um dado.` :
-                                `O lance era FALSO! Havia apenas ${actualQuantity} dados de face ${currentBid.face}. ${bidderName} perde um dado.`;
-                        } else { // exact_bid
-                            const bidWasExact = actualQuantity === currentBid.quantity;
-                            if (bidWasExact) {
-                                roundMessage = `${actionTakerName} CRAVOU! Havia exatamente ${actualQuantity} dados de face ${currentBid.face}. Todos os outros perdem um dado.`;
-                                losers = Object.keys(updatedPlayers).filter(id => id !== actionTaker);
-                                for (const loserId of losers) {
-                                    updatedPlayers[loserId].diceCount = Math.max(0, updatedPlayers[loserId].diceCount - 1);
+                            if (currentPhase === 'challenged') {
+                                const bidWasCorrect = actualQuantity >= currentBid.quantity;
+                                loser = bidWasCorrect ? actionTaker : bidder;
+                                losers = [loser];
+                                updatedPlayers[loser].diceCount = Math.max(0, updatedPlayers[loser].diceCount - 1);
+                                roundMessage = bidWasCorrect ?
+                                    `O lance era VERDADEIRO! Havia ${actualQuantity} dados de face ${currentBid.face}. ${actionTakerName} perde um dado.` :
+                                    `O lance era FALSO! Havia apenas ${actualQuantity} dados de face ${currentBid.face}. ${bidderName} perde um dado.`;
+                            } else { // exact_bid
+                                const bidWasExact = actualQuantity === currentBid.quantity;
+                                if (bidWasExact) {
+                                    roundMessage = `${actionTakerName} CRAVOU! Havia exatamente ${actualQuantity} dados de face ${currentBid.face}. Todos os outros perdem um dado.`;
+                                    losers = Object.keys(updatedPlayers).filter(id => id !== actionTaker);
+                                    for (const loserId of losers) {
+                                        updatedPlayers[loserId].diceCount = Math.max(0, updatedPlayers[loserId].diceCount - 1);
+                                    }
+                                    loser = actionTaker; // Próximo a jogar
+                                } else {
+                                    losers = [actionTaker];
+                                    updatedPlayers[actionTaker].diceCount = Math.max(0, updatedPlayers[actionTaker].diceCount - 1);
+                                    roundMessage = `${actionTakerName} errou! Havia ${actualQuantity} dados de face ${currentBid.face}, não ${currentBid.quantity}. Ele perde um dado.`;
+                                    loser = actionTaker; // Próximo a jogar
                                 }
-                                loser = actionTaker; // Próximo a jogar
-                            } else {
-                                losers = [actionTaker];
-                                updatedPlayers[actionTaker].diceCount = Math.max(0, updatedPlayers[actionTaker].diceCount - 1);
-                                roundMessage = `${actionTakerName} errou! Havia ${actualQuantity} dados de face ${currentBid.face}, não ${currentBid.quantity}. Ele perde um dado.`;
-                                loser = actionTaker; // Próximo a jogar
                             }
-                        }
 
-                        const revealGameState = {
-                            ...gameState,
-                            players: updatedPlayers,
-                            roundInfo: {
-                                ...roundInfo,
-                                phase: 'reveal',
-                                loser: loser,
-                                losers: losers,
-                                actualQuantity: actualQuantity,
-                                message: roundMessage,
-                                allDice: allDice
-                            }
-                        };
-                        // A lógica do vencedor foi movida para o manipulador de eventos 'nextRoundBtn'.
-                        // Este bloco agora apenas transmite o resultado da rodada.
-                        await updateAndBroadcastGameState(revealGameState, true, 'round_reveal');
-                    }, 2500); // Atraso de 2.5 segundos para a animação
+                            const revealGameState = {
+                                ...gameState,
+                                players: updatedPlayers,
+                                roundInfo: {
+                                    ...roundInfo,
+                                    phase: 'reveal',
+                                    loser: loser,
+                                    losers: losers,
+                                    actualQuantity: actualQuantity,
+                                    message: roundMessage,
+                                    allDice: allDice
+                                }
+                            };
+                            // A lógica do vencedor foi movida para o manipulador de eventos 'nextRoundBtn'.
+                            // Este bloco agora apenas transmite o resultado da rodada.
+                            await updateAndBroadcastGameState(revealGameState, true, 'round_reveal');
+                        }, 2500); // Atraso de 2.5 segundos para a animação
+                    }
+                } finally {
+                    // Como a UI foi renderizada, oculta o overlay de carregamento.
+                    // Isso é crucial para o anfitrião, que estava aguardando este evento.
+                    toggleLoading(false);
                 }
-
-
-                // Como a UI foi renderizada, oculta o overlay de carregamento.
-                // Isso é crucial para o anfitrião, que estava aguardando este evento.
-                toggleLoading(false);
             });
 
             // Ouvinte para o evento de fechamento da sala pelo anfitrião

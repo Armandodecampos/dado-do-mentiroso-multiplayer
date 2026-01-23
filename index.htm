@@ -1764,11 +1764,22 @@
             currentRoomChannel.subscribe(async (status) => {
                 if (status === 'SUBSCRIBED') {
                     channelSubscribedAt = Date.now(); // Define o tempo de inscrição
-                    const { data: profile } = await Promise.race([
-                        sb.from('profiles').select('name').eq('id', currentUser.id).single(),
-                        timeout(8000, 'A busca do perfil para entrar na sala demorou muito.')
-                    ]);
-                    await currentRoomChannel.track({ name: profile.name || currentUser.email, email: currentUser.email, joined_at: new Date().toISOString() });
+                    try {
+                        const { data: profile, error } = await Promise.race([
+                            sb.from('profiles').select('name').eq('id', currentUser.id).single(),
+                            timeout(8000, 'A busca do perfil para entrar na sala demorou muito.')
+                        ]);
+
+                        if (error) throw error; // Lança o erro para o bloco catch
+
+                        // Se a busca for bem-sucedida, rastreia a presença.
+                        await currentRoomChannel.track({ name: profile.name || currentUser.email, email: currentUser.email, joined_at: new Date().toISOString() });
+                    } catch (err) {
+                        console.error("Falha ao rastrear a presença na sala:", err.message);
+                        // Exibe uma notificação amigável para o usuário.
+                        // Isso evita uma falha silenciosa sem deslogar o usuário desnecessariamente.
+                        showToast("Erro de rede ao entrar na sala. Sua presença pode não ser visível.");
+                    }
                 }
             });
         }
@@ -2107,19 +2118,26 @@
             ]);
             if (error) {
                 console.error('Erro ao buscar perfil:', error.message);
-                welcomeMessage.textContent = `Bem-vindo, ${currentUser.email}`;
-                showView('lobby-view'); // Falha para o lobby por segurança
-                return;
+                // Lança o erro para que o bloco catch em onAuthStateChange possa lidar com ele.
+                // Isso irá deslogar o usuário e limpar a sessão inválida, evitando o loop de carregamento.
+                throw error;
             }
             if (profile) {
                 welcomeMessage.textContent = `Bem-vindo, ${profile.name || currentUser.email}`;
             }
 
             if (profile && profile.last_room) {
-                const { data: roomData } = await Promise.race([
+                const { data: roomData, error: roomError } = await Promise.race([
                     sb.from('rooms').select('room_code, creator_id').eq('room_code', profile.last_room).maybeSingle(),
                     timeout(8000, 'A busca da sala anterior demorou muito.')
                 ]);
+
+                if (roomError) {
+                    console.error('Erro ao buscar sala anterior:', roomError.message);
+                    // Lança o erro para deslogar o usuário.
+                    throw roomError;
+                }
+
                 if (roomData) {
                     currentRoom = roomData; // Armazena detalhes da sala
                     roomCodeDisplay.textContent = roomData.room_code;

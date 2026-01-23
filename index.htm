@@ -584,9 +584,11 @@
         const { createClient } = supabase;
         const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
             auth: {
-                // Impede que a sessão do usuário seja salva no localStorage.
-                // Isso resolve o problema de travamento ao recarregar com uma sessão inválida.
-                persistSession: false
+                // Habilita o armazenamento da sessão e a atualização automática do token.
+                // Isso melhora a experiência do usuário, permitindo o login automático
+                // e garante que a sessão permaneça válida.
+                persistSession: true,
+                autoRefreshToken: true,
             }
         });
 
@@ -828,7 +830,10 @@
             toggleLoading(true); // Mostra o carregamento
             try {
                 // 1. Atualiza o banco de dados para marcar o jogo como iniciado.
-                const { error } = await sb.from('rooms').update({ game_started: true }).eq('room_code', currentRoom.room_code);
+                const { error } = await Promise.race([
+                    sb.from('rooms').update({ game_started: true }).eq('room_code', currentRoom.room_code),
+                    timeout(8000, 'A atualização para iniciar o jogo demorou muito.')
+                ]);
                 if (error) {
                     throw new Error(`Erro ao iniciar o jogo: ${error.message}`);
                 }
@@ -1407,7 +1412,10 @@
             const newName = document.getElementById('new-name').value;
 
             try {
-                const { error } = await sb.from('profiles').update({ name: newName }).eq('id', currentUser.id);
+                const { error } = await Promise.race([
+                    sb.from('profiles').update({ name: newName }).eq('id', currentUser.id),
+                    timeout(8000, 'A atualização do nome demorou muito.')
+                ]);
                 if (error) {
                     if (error.message.includes('profiles_name_key')) {
                         profileMessage.textContent = 'O nome de usuário já existe.';
@@ -1756,7 +1764,10 @@
             currentRoomChannel.subscribe(async (status) => {
                 if (status === 'SUBSCRIBED') {
                     channelSubscribedAt = Date.now(); // Define o tempo de inscrição
-                    const { data: profile } = await sb.from('profiles').select('name').eq('id', currentUser.id).single();
+                    const { data: profile } = await Promise.race([
+                        sb.from('profiles').select('name').eq('id', currentUser.id).single(),
+                        timeout(8000, 'A busca do perfil para entrar na sala demorou muito.')
+                    ]);
                     await currentRoomChannel.track({ name: profile.name || currentUser.email, email: currentUser.email, joined_at: new Date().toISOString() });
                 }
             });
@@ -2090,7 +2101,10 @@
         async function handleUserLoggedIn(session) {
             if (!session) return; // Adiciona uma verificação para evitar erros se a sessão for nula
             currentUser = session.user;
-            const { data: profile, error } = await sb.from('profiles').select('name, last_room').eq('id', currentUser.id).single();
+            const { data: profile, error } = await Promise.race([
+                sb.from('profiles').select('name, last_room').eq('id', currentUser.id).single(),
+                timeout(8000, 'A busca do perfil demorou muito.')
+            ]);
             if (error) {
                 console.error('Erro ao buscar perfil:', error.message);
                 welcomeMessage.textContent = `Bem-vindo, ${currentUser.email}`;
@@ -2102,7 +2116,10 @@
             }
 
             if (profile && profile.last_room) {
-                const { data: roomData } = await sb.from('rooms').select('room_code, creator_id').eq('room_code', profile.last_room).maybeSingle();
+                const { data: roomData } = await Promise.race([
+                    sb.from('rooms').select('room_code, creator_id').eq('room_code', profile.last_room).maybeSingle(),
+                    timeout(8000, 'A busca da sala anterior demorou muito.')
+                ]);
                 if (roomData) {
                     currentRoom = roomData; // Armazena detalhes da sala
                     roomCodeDisplay.textContent = roomData.room_code;

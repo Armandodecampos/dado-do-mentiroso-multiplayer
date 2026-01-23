@@ -1271,11 +1271,19 @@
             e.preventDefault();
             toggleLoading(true);
             try {
-                const { error } = await sb.auth.signInWithPassword({ email: document.getElementById('login-email').value, password: document.getElementById('login-password').value });
-                if (error) showAuthMessage(error.message, true);
-                else { showAuthMessage(''); loginForm.reset(); }
+                const { error } = await Promise.race([
+                    sb.auth.signInWithPassword({ email: document.getElementById('login-email').value, password: document.getElementById('login-password').value }),
+                    timeout(10000, 'A tentativa de login demorou muito.') // 10 segundos de timeout
+                ]);
+
+                if (error) {
+                    showAuthMessage(error.message, true);
+                } else {
+                    showAuthMessage('');
+                    loginForm.reset();
+                }
             } catch (err) {
-                showAuthMessage("Ocorreu um erro inesperado.", true);
+                showAuthMessage(err.message || "Ocorreu um erro inesperado.", true);
             } finally {
                 toggleLoading(false);
             }
@@ -2216,9 +2224,14 @@
                 }
             } catch (error) {
                 console.error("Erro durante a mudança de estado de autenticação:", error);
-                // Garante que o usuário veja a tela de login se algo der errado
+                // Limpa o estado local de forma agressiva para garantir uma reinicialização limpa.
+                currentUser = null;
+                currentRoom = null;
+                // Garante que qualquer sessão inválida seja removida do Supabase e do localStorage.
+                await sb.auth.signOut().catch(e => console.error('O signOut de emergência falhou:', e));
+                // Garante que qualquer canal em tempo real seja fechado.
                 await leaveRoomRealtime();
-                await sb.auth.signOut().catch(e => console.error('O logout falhou no erro:', e));
+                // Força a UI a voltar para a tela de login.
                 showView('auth-view');
             }
         });

@@ -678,6 +678,7 @@
         let gameState = null;
         let presences = {};
         let channelSubscribedAt = null; // Rastreia o tempo de inscrição para evitar condições de corrida
+        let nextRoundTimeoutId = null; // Rastreia o temporizador para a próxima rodada automática
 
         // --- 4. FUNÇÕES AUXILIARES ---
         function timeout(ms, message = 'A operação demorou muito e foi cancelada.') {
@@ -859,8 +860,7 @@
 
         function renderGameUI() {
             // Garante que todos os overlays do jogo estejam escondidos por padrão.
-            // Eles serão reexibidos apenas se o estado atual do jogo o justificar.
-            document.getElementById('round-result-overlay').classList.add('hidden');
+            // Eles serão reexib-idos apenas se o estado atual do jogo o justificar.
             document.getElementById('game-over-overlay').classList.add('hidden');
             roundActionOverlay.classList.add('hidden');
 
@@ -1638,7 +1638,8 @@
                     }
 
                     if (isHost && payload.gameState.roundInfo.phase === 'reveal') {
-                        setTimeout(handleNextRound, 5000);
+                        if (nextRoundTimeoutId) clearTimeout(nextRoundTimeoutId);
+                        nextRoundTimeoutId = setTimeout(handleNextRound, 5000);
                     }
                 } finally {
                     // Como a UI foi renderizada, oculta o overlay de carregamento.
@@ -1997,6 +1998,20 @@
         closeRoundResultBtn.addEventListener('click', () => {
             const roundResultOverlay = document.getElementById('round-result-overlay');
             roundResultOverlay.classList.add('hidden');
+
+            const isHost = currentUser && currentRoom && currentUser.id === currentRoom.creator_id;
+            // Check if the game is over by looking at the number of players with dice.
+            const remainingPlayersWithDice = gameState ? Object.values(gameState.players).filter(p => p.diceCount > 0).length : 0;
+
+            // If it's the last round and the host clicks, immediately show the winner.
+            if (isHost && remainingPlayersWithDice < 2) {
+                if (nextRoundTimeoutId) {
+                    clearTimeout(nextRoundTimeoutId);
+                    nextRoundTimeoutId = null;
+                }
+                // This function will see there's only one player left and declare a winner.
+                handleNextRound();
+            }
         });
 
         async function handleNextRound() {
@@ -2218,7 +2233,15 @@
             renderGameUI: renderGameUI, // Expor a função de renderização do jogo
             handleUserLoggedIn: handleUserLoggedIn,
             setRoomViewMode: setRoomViewMode,
-            triggerGameStateUpdate: handleGameStateUpdateBroadcast
+            triggerGameStateUpdate: handleGameStateUpdateBroadcast,
+            joinRoomRealtime: joinRoomRealtime,
+            setState: (newState) => {
+                currentUser = newState.currentUser;
+                currentRoom = newState.currentRoom;
+                gameStarted = newState.gameStarted;
+                gameState = newState.gameState;
+                presences = newState.presences;
+            }
         };
     </script>
 </body>

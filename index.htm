@@ -449,6 +449,7 @@
                         <h2 id="final-winner-name" class="text-6xl font-bold font-title text-amber-400" style="text-shadow: 3px 3px 6px rgba(0,0,0,0.7);"></h2>
                         <p class="text-2xl mt-2 text-slate-200">é o vencedor final!</p>
                         <button id="back-to-room-lobby-btn" class="mt-8 bg-amber-500 text-slate-900 font-bold py-3 px-8 rounded-lg transition-all duration-300 transform hover:scale-110 shadow-lg hover:shadow-amber-500/50 text-xl border-b-4 border-amber-700">Voltar para a Sala</button>
+                        <button id="leave-room-from-winner-btn" class="mt-4 bg-gray-600 text-white font-bold py-2 px-6 rounded-lg transition-all duration-300 transform hover:scale-105 shadow-lg text-md border-b-4 border-gray-800">Sair da Sala</button>
                     </div>
                 </div>
             </div>
@@ -887,9 +888,11 @@
             if (gameWinner) {
                 const winnerName = presences[gameWinner]?.[0].name || presences[gameWinner]?.[0].email || 'O campeão';
                 document.getElementById('final-winner-name').textContent = winnerName;
-                 // Controla a visibilidade do botão de voltar
                 const isHost = currentUser && currentRoom && currentUser.id === currentRoom.creator_id;
+                // O anfitrião vê o botão "Voltar para a Sala" para reiniciar o jogo.
                 document.getElementById('back-to-room-lobby-btn').classList.toggle('hidden', !isHost);
+                // Os outros jogadores veem o botão "Sair da Sala".
+                document.getElementById('leave-room-from-winner-btn').classList.toggle('hidden', isHost);
 
                 // Exibe o overlay e aciona a animação
                 finalWinnerOverlay.classList.remove('hidden');
@@ -1638,8 +1641,12 @@
                     }
 
                     if (isHost && payload.gameState.roundInfo.phase === 'reveal') {
-                        if (nextRoundTimeoutId) clearTimeout(nextRoundTimeoutId);
-                        nextRoundTimeoutId = setTimeout(handleNextRound, 5000);
+                        const remainingPlayersWithDice = gameState ? Object.values(gameState.players).filter(p => p.diceCount > 0).length : 0;
+                        // Only set the timer if the game is not over, preventing the automatic winner announcement.
+                        if (remainingPlayersWithDice >= 2) {
+                            if (nextRoundTimeoutId) clearTimeout(nextRoundTimeoutId);
+                            nextRoundTimeoutId = setTimeout(handleNextRound, 1000);
+                        }
                     }
                 } finally {
                     // Como a UI foi renderizada, oculta o overlay de carregamento.
@@ -2112,6 +2119,12 @@
             if (currentUser && currentRoom && currentUser.id === currentRoom.creator_id) {
                 await updateAndBroadcastGameState(null, false);
             }
+        });
+
+        // Event listener for the new "Leave Room" button on the winner screen
+        document.getElementById('leave-room-from-winner-btn').addEventListener('click', () => {
+            // Re-use the existing leave room logic
+            leaveRoomBtn.click();
         });
 
         // --- 7. INICIALIZAÇÃO E AUTENTICAÇÃO ---

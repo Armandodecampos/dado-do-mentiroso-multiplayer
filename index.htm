@@ -421,7 +421,7 @@
                         <div id="all-dice-reveal" class="mb-6 p-4 rounded-lg bg-[#3d2323] max-h-64 overflow-y-auto w-full space-y-3">
                             <!-- Dados de todos os jogadores serão mostrados aqui -->
                         </div>
-                        <button id="next-round-btn" class="bg-[#e5a938] text-[#4a2c2a] font-bold py-3 px-8 rounded-lg transition-all duration-300 transform hover:scale-110 shadow-lg hover:shadow-[#e5a938]/50 text-lg border-b-4 border-[#c08e2a]">Próxima Rodada</button>
+                        <button id="close-round-result-btn" class="bg-[#e5a938] text-[#4a2c2a] font-bold py-3 px-8 rounded-lg transition-all duration-300 transform hover:scale-110 shadow-lg hover:shadow-[#e5a938]/50 text-lg border-b-4 border-[#c08e2a]">Fechar</button>
                     </div>
                 </div>
 
@@ -648,7 +648,7 @@
         const bidBtn = document.getElementById('bid-btn');
         const challengeBtn = document.getElementById('challenge-btn');
         const exactBtn = document.getElementById('exact-btn');
-        const nextRoundBtn = document.getElementById('next-round-btn');
+        const closeRoundResultBtn = document.getElementById('close-round-result-btn');
         const backToLobbyBtn = document.getElementById('back-to-lobby-btn');
         // Overlays e Sons para Animação
         const roundActionOverlay = document.getElementById('round-action-overlay');
@@ -984,15 +984,11 @@
                     allDiceReveal.innerHTML += `<div class="${containerClasses}"><p class="font-bold text-white mb-2">${playerName}:</p><div class="flex justify-center gap-2">${diceHtml}</div></div>`;
                 }
 
-                const isHost = currentUser && currentRoom && currentUser.id === currentRoom.creator_id;
-                nextRoundBtn.classList.toggle('hidden', !isHost);
-
-                // Lógica para alterar o texto do botão na rodada final
                 const remainingPlayersWithDice = Object.values(players).filter(p => p.diceCount > 0).length;
                 if (remainingPlayersWithDice < 2) {
-                    nextRoundBtn.textContent = 'Ver Vencedor';
+                    closeRoundResultBtn.textContent = 'Ver Vencedor';
                 } else {
-                    nextRoundBtn.textContent = 'Próxima Rodada';
+                    closeRoundResultBtn.textContent = 'Fechar';
                 }
 
                 roundResultOverlay.classList.remove('hidden');
@@ -1545,6 +1541,8 @@
             // evitando condições de corrida.
         }
 
+        let handleGameStateUpdateBroadcast; // Declarado em um escopo mais alto
+
         async function joinRoomRealtime(roomCode) {
             if (!currentUser) return;
             await leaveRoomRealtime();
@@ -1558,7 +1556,7 @@
             });
 
             // Ouvinte para ATUALIZAÇÕES GERAIS DO JOGO
-            currentRoomChannel.on('broadcast', { event: 'game_state_update' }, ({ payload }) => {
+            handleGameStateUpdateBroadcast = ({ payload }) => {
                 try {
                     gameStarted = payload.gameStarted;
                     gameState = payload.gameState; // Pode ser nulo se o jogo terminou
@@ -1638,12 +1636,17 @@
                             await updateAndBroadcastGameState(revealGameState, true, 'round_reveal');
                         }, 2500); // Atraso de 2.5 segundos para a animação
                     }
+
+                    if (isHost && payload.gameState.roundInfo.phase === 'reveal') {
+                        setTimeout(handleNextRound, 5000);
+                    }
                 } finally {
                     // Como a UI foi renderizada, oculta o overlay de carregamento.
                     // Isso é crucial para o anfitrião, que estava aguardando este evento.
                     toggleLoading(false);
                 }
-            });
+            };
+            currentRoomChannel.on('broadcast', { event: 'game_state_update' }, handleGameStateUpdateBroadcast);
 
             // Ouvinte para o evento de fechamento da sala pelo anfitrião
             currentRoomChannel.on('broadcast', { event: 'host_left_and_closed_room' }, () => {
@@ -1991,7 +1994,12 @@
             await updateAndBroadcastGameState(updatedGameState, true);
         });
 
-        nextRoundBtn.addEventListener('click', async () => {
+        closeRoundResultBtn.addEventListener('click', () => {
+            const roundResultOverlay = document.getElementById('round-result-overlay');
+            roundResultOverlay.classList.add('hidden');
+        });
+
+        async function handleNextRound() {
             if (!gameState || !gameState.roundInfo.loser) return;
 
             // Apenas o anfitrião envia a atualização para evitar corridas.
@@ -2079,7 +2087,7 @@
                 // mas adicionamos um fallback para garantir.
                 setTimeout(() => toggleLoading(false), 500);
             }
-        });
+        }
 
         backToLobbyBtn.addEventListener('click', async () => {
             leaveRoomBtn.click();
@@ -2208,7 +2216,9 @@
             showView: showView,
             renderRoomUI: renderRoomUI,
             renderGameUI: renderGameUI, // Expor a função de renderização do jogo
-            handleUserLoggedIn: handleUserLoggedIn
+            handleUserLoggedIn: handleUserLoggedIn,
+            setRoomViewMode: setRoomViewMode,
+            triggerGameStateUpdate: handleGameStateUpdateBroadcast
         };
     </script>
 </body>

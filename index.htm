@@ -416,12 +416,17 @@
                 <!-- Overlay de Resultado da Rodada (REDESENHADO) -->
                 <div id="round-result-overlay" class="absolute inset-0 bg-[#3d2323] bg-opacity-95 flex flex-col items-center justify-center hidden p-4 z-50 text-[#f3e9d2] opacity-0 transition-opacity duration-700 ease-in">
                     <div class="bg-[#4a2c2a] p-8 rounded-2xl shadow-2xl w-full max-w-lg text-center border-t-8 border-b-8 border-[#e5a938]">
-                        <h2 class="text-4xl font-extrabold text-[#e5a938] mb-2 font-title">Resultado da Rodada</h2>
+                        <h2 id="round-result-title" class="text-4xl font-extrabold text-[#e5a938] mb-2 font-title">Resultado da Rodada</h2>
                         <p id="round-result-message" class="text-lg mb-6 break-all"></p>
                         <div id="all-dice-reveal" class="mb-6 p-4 rounded-lg bg-[#3d2323] max-h-64 overflow-y-auto w-full space-y-3">
                             <!-- Dados de todos os jogadores serão mostrados aqui -->
                         </div>
                         <button id="close-round-result-btn" class="bg-[#e5a938] text-[#4a2c2a] font-bold py-3 px-8 rounded-lg transition-all duration-300 transform hover:scale-110 shadow-lg hover:shadow-[#e5a938]/50 text-lg border-b-4 border-[#c08e2a]">Fechar</button>
+                        <!-- Botões de Fim de Jogo (escondidos por padrão) -->
+                        <div id="end-game-buttons" class="hidden mt-4 space-y-2">
+                             <button id="final-back-to-lobby-btn" class="bg-amber-500 text-slate-900 font-bold py-3 px-8 rounded-lg transition-all duration-300 transform hover:scale-110 shadow-lg hover:shadow-amber-500/50 text-xl border-b-4 border-amber-700">Voltar para a Sala</button>
+                             <button id="final-leave-room-btn" class="bg-gray-600 text-white font-bold py-2 px-6 rounded-lg transition-all duration-300 transform hover:scale-105 shadow-lg text-md border-b-4 border-gray-800">Sair da Sala</button>
+                        </div>
                     </div>
                 </div>
 
@@ -441,16 +446,6 @@
                     <h2 id="winner-message" class="text-4xl font-bold mb-4 text-center font-title"></h2>
                     <p class="mb-6 text-lg">O jogo terminou.</p>
                     <button id="back-to-lobby-btn" class="bg-[#003366] text-white font-bold py-3 px-6 rounded-lg transition-transform transform hover:scale-105 shadow-md border-b-4 border-[#001a33]">Voltar a sala de espera</button>
-                </div>
-
-                <!-- Overlay de Vencedor Final (NOVO E MELHORADO) -->
-                <div id="final-winner-overlay" class="absolute inset-0 bg-black bg-opacity-80 flex-col items-center justify-center hidden p-4 z-[60] text-white">
-                    <div id="winner-content" class="text-center p-8 rounded-lg">
-                        <h2 id="final-winner-name" class="text-6xl font-bold font-title text-amber-400" style="text-shadow: 3px 3px 6px rgba(0,0,0,0.7);"></h2>
-                        <p class="text-2xl mt-2 text-slate-200">é o vencedor final!</p>
-                        <button id="back-to-room-lobby-btn" class="mt-8 bg-amber-500 text-slate-900 font-bold py-3 px-8 rounded-lg transition-all duration-300 transform hover:scale-110 shadow-lg hover:shadow-amber-500/50 text-xl border-b-4 border-amber-700">Voltar para a Sala</button>
-                        <button id="leave-room-from-winner-btn" class="mt-4 bg-gray-600 text-white font-bold py-2 px-6 rounded-lg transition-all duration-300 transform hover:scale-105 shadow-lg text-md border-b-4 border-gray-800">Sair da Sala</button>
-                    </div>
                 </div>
             </div>
             
@@ -882,31 +877,6 @@
             };
             const diceSound = document.getElementById('dice-sound');
 
-            // 1. Overlay de Fim de Jogo
-            const finalWinnerOverlay = document.getElementById('final-winner-overlay');
-            const winnerContent = document.getElementById('winner-content');
-            if (gameWinner) {
-                const winnerName = presences[gameWinner]?.[0].name || presences[gameWinner]?.[0].email || 'O campeão';
-                document.getElementById('final-winner-name').textContent = winnerName;
-                const isHost = currentUser && currentRoom && currentUser.id === currentRoom.creator_id;
-                // O anfitrião vê o botão "Voltar para a Sala" para reiniciar o jogo.
-                document.getElementById('back-to-room-lobby-btn').classList.toggle('hidden', !isHost);
-                // Os outros jogadores veem o botão "Sair da Sala".
-                document.getElementById('leave-room-from-winner-btn').classList.toggle('hidden', isHost);
-
-                // Exibe o overlay e aciona a animação
-                finalWinnerOverlay.classList.remove('hidden');
-                finalWinnerOverlay.classList.add('flex'); // Usa flex para centralizar
-                winnerContent.classList.add('animate-winner-intro');
-
-                // Oculta o overlay antigo, se necessário
-                document.getElementById('game-over-overlay').classList.add('hidden');
-                return; // Impede a renderização do resto da UI do jogo
-            } else {
-                finalWinnerOverlay.classList.add('hidden');
-                finalWinnerOverlay.classList.remove('flex');
-                winnerContent.classList.remove('animate-winner-intro');
-            }
 
             // 2. Lógica de Fases da Rodada (NOVO)
             const currentPhase = roundInfo.phase;
@@ -954,7 +924,7 @@
 
             if (currentPhase === 'reveal') {
                 const roundResultOverlay = document.getElementById('round-result-overlay');
-                document.getElementById('round-result-message').textContent = roundInfo.message;
+                document.getElementById('round-result-message').innerHTML = roundInfo.message; // Use innerHTML to render styled spans
                 const allDiceReveal = document.getElementById('all-dice-reveal');
                 allDiceReveal.innerHTML = '';
 
@@ -988,10 +958,20 @@
                 }
 
                 const remainingPlayersWithDice = Object.values(players).filter(p => p.diceCount > 0).length;
-                if (remainingPlayersWithDice < 2) {
-                    closeRoundResultBtn.textContent = 'Ver Vencedor';
+
+                const isHost = currentUser && currentRoom && currentUser.id === currentRoom.creator_id;
+                const isGameOver = remainingPlayersWithDice < 2;
+
+                // Control button visibility based on game state
+                document.getElementById('close-round-result-btn').classList.toggle('hidden', isGameOver);
+                document.getElementById('end-game-buttons').classList.toggle('hidden', !isGameOver);
+                document.getElementById('final-back-to-lobby-btn').classList.toggle('hidden', !isGameOver || !isHost);
+                document.getElementById('final-leave-room-btn').classList.toggle('hidden', !isGameOver || isHost);
+
+                if (isGameOver) {
+                    document.getElementById('round-result-title').textContent = "Fim de Jogo!";
                 } else {
-                    closeRoundResultBtn.textContent = 'Fechar';
+                    document.getElementById('round-result-title').textContent = "Resultado da Rodada";
                 }
 
                 roundResultOverlay.classList.remove('hidden');
@@ -1602,12 +1582,12 @@
                                 losers = [loser];
                                 updatedPlayers[loser].diceCount = Math.max(0, updatedPlayers[loser].diceCount - 1);
                                 roundMessage = bidWasCorrect ?
-                                    `O lance era VERDADEIRO! Havia ${actualQuantity} dados de face ${currentBid.face}. ${actionTakerName} perde um dado.` :
-                                    `O lance era FALSO! Havia apenas ${actualQuantity} dados de face ${currentBid.face}. ${bidderName} perde um dado.`;
+                                    `O lance era <span class="text-green-400 font-bold">VERDADEIRO</span>! Havia ${actualQuantity} dados de face ${currentBid.face}. ${actionTakerName} perde um dado.` :
+                                    `O lance era <span class="text-green-400 font-bold">FALSO</span>! Havia apenas ${actualQuantity} dados de face ${currentBid.face}. ${bidderName} perde um dado.`;
                             } else { // exact_bid
                                 const bidWasExact = actualQuantity === currentBid.quantity;
                                 if (bidWasExact) {
-                                    roundMessage = `${actionTakerName} CRAVOU! Havia exatamente ${actualQuantity} dados de face ${currentBid.face}. Todos os outros perdem um dado.`;
+                                    roundMessage = `${actionTakerName} <span class="text-green-400 font-bold">CRAVOU</span>! Havia exatamente ${actualQuantity} dados de face ${currentBid.face}. Todos os outros perdem um dado.`;
                                     losers = Object.keys(updatedPlayers).filter(id => id !== actionTaker);
                                     for (const loserId of losers) {
                                         updatedPlayers[loserId].diceCount = Math.max(0, updatedPlayers[loserId].diceCount - 1);
@@ -1620,6 +1600,16 @@
                                     loser = actionTaker; // Próximo a jogar
                                 }
                             }
+
+                            // Check for a winner immediately after dice counts are updated
+                            const remainingPlayerIds = Object.keys(updatedPlayers).filter(id => updatedPlayers[id].diceCount > 0);
+                            let gameWinner = null;
+                            if (remainingPlayerIds.length === 1) {
+                                gameWinner = remainingPlayerIds[0];
+                                const winnerName = presences[gameWinner]?.[0]?.name || 'O Vencedor';
+                                roundMessage += `<br><br><strong class="text-amber-400 text-xl">${winnerName.toUpperCase()} É O VENCEDOR!</strong>`;
+                            }
+
 
                             const revealGameState = {
                                 ...gameState,
@@ -2005,20 +1995,6 @@
         closeRoundResultBtn.addEventListener('click', () => {
             const roundResultOverlay = document.getElementById('round-result-overlay');
             roundResultOverlay.classList.add('hidden');
-
-            const isHost = currentUser && currentRoom && currentUser.id === currentRoom.creator_id;
-            // Check if the game is over by looking at the number of players with dice.
-            const remainingPlayersWithDice = gameState ? Object.values(gameState.players).filter(p => p.diceCount > 0).length : 0;
-
-            // If it's the last round and the host clicks, immediately show the winner.
-            if (isHost && remainingPlayersWithDice < 2) {
-                if (nextRoundTimeoutId) {
-                    clearTimeout(nextRoundTimeoutId);
-                    nextRoundTimeoutId = null;
-                }
-                // This function will see there's only one player left and declare a winner.
-                handleNextRound();
-            }
         });
 
         async function handleNextRound() {
@@ -2115,15 +2091,15 @@
             leaveRoomBtn.click();
         });
 
-        document.getElementById('back-to-room-lobby-btn').addEventListener('click', async () => {
+        document.getElementById('final-back-to-lobby-btn').addEventListener('click', async () => {
             if (currentUser && currentRoom && currentUser.id === currentRoom.creator_id) {
+                // Hide the overlay before resetting the game state
+                document.getElementById('round-result-overlay').classList.add('hidden');
                 await updateAndBroadcastGameState(null, false);
             }
         });
 
-        // Event listener for the new "Leave Room" button on the winner screen
-        document.getElementById('leave-room-from-winner-btn').addEventListener('click', () => {
-            // Re-use the existing leave room logic
+        document.getElementById('final-leave-room-btn').addEventListener('click', () => {
             leaveRoomBtn.click();
         });
 

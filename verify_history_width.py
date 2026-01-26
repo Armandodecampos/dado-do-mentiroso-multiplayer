@@ -12,33 +12,38 @@ async def main():
 
         await page.goto(f"file:///app/index.htm")
 
-        await page.evaluate("""() => {
-            window.testUtils.setCurrentUser({ id: 'user-123', email: 'jules@test.com' });
-            window.testUtils.setCurrentRoom({ room_code: 'TEST1', creator_id: 'user-123' });
-            window.testUtils.setGameStarted(true);
-            window.testUtils.setPresences({
-                'user-123': [{ name: 'Jules', email: 'jules@test.com' }],
-                'user-456': [{ name: 'Agent', email: 'agent@test.com' }]
-            });
-            const gameState = {
-                players: {
-                    'user-123': { diceCount: 5, dice: [1, 2, 3, 4, 5] },
-                    'user-456': { diceCount: 5, dice: [6, 6, 6, 6, 6] }
+        # Define the complete state in a Python dictionary
+        state = {
+            "currentUser": {"id": "user-123", "email": "jules@test.com"},
+            "currentRoom": {"room_code": "TEST1", "creator_id": "user-123"},
+            "gameStarted": True,
+            "presences": {
+                "user-123": [{"name": "Jules", "email": "jules@test.com"}],
+                "user-456": [{"name": "Agent", "email": "agent@test.com"}]
+            },
+            "gameState": {
+                "players": {
+                    "user-123": {"diceCount": 5, "dice": [1, 2, 3, 4, 5]},
+                    "user-456": {"diceCount": 5, "dice": [6, 6, 6, 6, 6]}
                 },
-                turnOrder: ['user-123', 'user-456'],
-                currentPlayer: 'user-123',
-                currentBid: { quantity: 2, face: 4 },
-                lastBidder: 'user-456',
-                turn: 2,
-                round: 1,
-                gameWinner: null,
-                bidHistory: [{type: 'bid', playerId: 'user-456', quantity: 2, face: 4}],
-                currentTurnMessage: 'É a vez de Jules.',
-                roundInfo: { phase: 'bidding' }
-            };
-            window.testUtils.setGameState(gameState);
-        }""")
+                "turnOrder": ["user-123", "user-456"],
+                "currentPlayer": "user-123",
+                "currentBid": {"quantity": 2, "face": 4},
+                "lastBidder": "user-456",
+                "turn": 2,
+                "round": 1,
+                "gameWinner": None,
+                "bidHistory": [{"type": "bid", "playerId": "user-456", "quantity": 2, "face": 4}],
+                "currentTurnMessage": "É a vez de Jules.",
+                "roundInfo": {"phase": "bidding"}
+            }
+        }
 
+        # Serialize the state to JSON and set it in the browser context
+        state_json = json.dumps(state)
+        await page.evaluate(f"window.testUtils.setState({state_json})")
+
+        # Render the UI
         await page.evaluate("window.testUtils.showView('room-view')")
         await page.evaluate("window.testUtils.setRoomViewMode(true)")
         await page.evaluate("window.testUtils.renderRoomUI()")

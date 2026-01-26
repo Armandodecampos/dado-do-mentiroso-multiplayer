@@ -531,7 +531,27 @@
     <audio id="exact-sound" src="https://dl.dropbox.com/scl/fi/r8l5g4h6f5k9n3m2p1q0w/aposta-exata.mp3?rlkey=s7d6f5g4h3j2k1l0&st=a1b2c3d4&dl=0" preload="auto"></audio>
 
     <script>
-        // --- 1. LÓGICA DE ESTADO DE JOGO ---
+        // Expor utilitários de teste PRIMEIRO para garantir que estejam disponíveis
+        window.testUtils = {
+            setState: (newState) => {
+                // Adiciona uma verificação para evitar erros se o estado for nulo
+                if (!newState) {
+                    currentUser = null;
+                    currentRoom = null;
+                    gameStarted = false;
+                    gameState = null;
+                    presences = {};
+                    return;
+                }
+                currentUser = newState.currentUser;
+                currentRoom = newState.currentRoom;
+                gameStarted = newState.gameStarted;
+                gameState = newState.gameState;
+                presences = newState.presences;
+            }
+        };
+
+        // --- 1. LÓGICA DE ESTADO de JOGO ---
         /**
          * Cria o estado inicial do jogo para uma lista de jogadores.
          * Esta função é a fonte da verdade para um novo jogo.
@@ -854,6 +874,15 @@
             }
         }
 
+        const diceSVGTags = {
+            1: '<svg class="w-8 h-8"><use href="#dice-1"></use></svg>',
+            2: '<svg class="w-8 h-8"><use href="#dice-2"></use></svg>',
+            3: '<svg class="w-8 h-8"><use href="#dice-3"></use></svg>',
+            4: '<svg class="w-8 h-8"><use href="#dice-4"></use></svg>',
+            5: '<svg class="w-8 h-8"><use href="#dice-5"></use></svg>',
+            6: '<svg class="w-8 h-8"><use href="#dice-6"></use></svg>',
+        };
+
         function renderGameUI() {
             // Garante que todos os overlays do jogo estejam escondidos por padrão.
             // Eles serão reexib-idos apenas se o estado atual do jogo o justificar.
@@ -867,14 +896,6 @@
             const { players, currentPlayer, currentBid, round, roundInfo, gameWinner } = gameState;
             const myPlayerState = players[currentUser.id];
 
-            const diceSVGTags = {
-                1: '<svg class="w-8 h-8"><use href="#dice-1"></use></svg>',
-                2: '<svg class="w-8 h-8"><use href="#dice-2"></use></svg>',
-                3: '<svg class="w-8 h-8"><use href="#dice-3"></use></svg>',
-                4: '<svg class="w-8 h-8"><use href="#dice-4"></use></svg>',
-                5: '<svg class="w-8 h-8"><use href="#dice-5"></use></svg>',
-                6: '<svg class="w-8 h-8"><use href="#dice-6"></use></svg>',
-            };
             const diceSound = document.getElementById('dice-sound');
 
 
@@ -1581,13 +1602,20 @@
                                 loser = bidWasCorrect ? actionTaker : bidder;
                                 losers = [loser];
                                 updatedPlayers[loser].diceCount = Math.max(0, updatedPlayers[loser].diceCount - 1);
-                                roundMessage = bidWasCorrect ?
-                                    `O lance era <span class="text-green-400 font-bold">VERDADEIRO</span>! Havia ${actualQuantity} dados de face ${currentBid.face}. ${actionTakerName} perde um dado.` :
-                                    `O lance era <span class="text-green-400 font-bold">FALSO</span>! Havia apenas ${actualQuantity} dados de face ${currentBid.face}. ${bidderName} perde um dado.`;
+
+                                const faceIcon = diceSVGTags[currentBid.face].replace('class="w-8 h-8"', 'class="w-6 h-6 inline-block"');
+
+                                if (bidWasCorrect) {
+                                    roundMessage = `O lance era <span class="text-green-400 font-bold">VERDADEIRO</span>! Havia ${actualQuantity} x ${faceIcon}. ${actionTakerName} perde um dado.`;
+                                } else {
+                                    roundMessage = `O lance era <span class="text-green-400 font-bold">FALSO</span>! Havia apenas ${actualQuantity} x ${faceIcon}. ${bidderName} perde um dado.`;
+                                }
                             } else { // exact_bid
                                 const bidWasExact = actualQuantity === currentBid.quantity;
+                                const faceIcon = diceSVGTags[currentBid.face].replace('class="w-8 h-8"', 'class="w-6 h-6 inline-block"');
+
                                 if (bidWasExact) {
-                                    roundMessage = `${actionTakerName} <span class="text-green-400 font-bold">CRAVOU</span>! Havia exatamente ${actualQuantity} dados de face ${currentBid.face}. Todos os outros perdem um dado.`;
+                                    roundMessage = `${actionTakerName} <span class="text-green-400 font-bold">CRAVOU</span>! Havia exatamente ${actualQuantity} x ${faceIcon}. Todos os outros perdem um dado.`;
                                     losers = Object.keys(updatedPlayers).filter(id => id !== actionTaker);
                                     for (const loserId of losers) {
                                         updatedPlayers[loserId].diceCount = Math.max(0, updatedPlayers[loserId].diceCount - 1);
@@ -1596,7 +1624,7 @@
                                 } else {
                                     losers = [actionTaker];
                                     updatedPlayers[actionTaker].diceCount = Math.max(0, updatedPlayers[actionTaker].diceCount - 1);
-                                    roundMessage = `${actionTakerName} errou! Havia ${actualQuantity} dados de face ${currentBid.face}, não ${currentBid.quantity}. Ele perde um dado.`;
+                                    roundMessage = `${actionTakerName} errou! Havia ${actualQuantity} x ${faceIcon}, não ${currentBid.quantity}. Ele perde um dado.`;
                                     loser = actionTaker; // Próximo a jogar
                                 }
                             }
@@ -1795,7 +1823,7 @@
             }
         });
 
-        leaveRoomBtn.addEventListener('click', async () => {
+        async function leaveRoom() {
             toggleLoading(true);
             leaveRoomBtn.disabled = true;
 
@@ -1848,7 +1876,10 @@
                 toggleLoading(false);
                 leaveRoomBtn.disabled = false;
             }
-        });
+        }
+
+        leaveRoomBtn.addEventListener('click', leaveRoom);
+
 
         // --- 8. LÓGICA DE AÇÕES DO JOGO ---
 
@@ -2099,9 +2130,7 @@
             }
         });
 
-        document.getElementById('final-leave-room-btn').addEventListener('click', () => {
-            leaveRoomBtn.click();
-        });
+        document.getElementById('final-leave-room-btn').addEventListener('click', leaveRoom);
 
         // --- 7. INICIALIZAÇÃO E AUTENTICAÇÃO ---
         async function handleUserLoggedIn(session) {
@@ -2207,31 +2236,17 @@
 
         window.addEventListener('beforeunload', () => { if (currentRoomChannel) leaveRoomRealtime(); });
 
-        // Expor utilitários de teste para permitir que o Playwright defina o estado interno do módulo
-        window.testUtils = {
+        // Adiciona as outras funções de teste ao objeto existente
+        Object.assign(window.testUtils, {
             sb: sb, // Expor o cliente Supabase para mocking
-            setState: (newState) => {
-                currentUser = newState.currentUser;
-                currentRoom = newState.currentRoom;
-                gameStarted = newState.gameStarted;
-                gameState = newState.gameState;
-                presences = newState.presences;
-            },
             showView: showView,
             renderRoomUI: renderRoomUI,
             renderGameUI: renderGameUI, // Expor a função de renderização do jogo
             handleUserLoggedIn: handleUserLoggedIn,
             setRoomViewMode: setRoomViewMode,
             triggerGameStateUpdate: handleGameStateUpdateBroadcast,
-            joinRoomRealtime: joinRoomRealtime,
-            setState: (newState) => {
-                currentUser = newState.currentUser;
-                currentRoom = newState.currentRoom;
-                gameStarted = newState.gameStarted;
-                gameState = newState.gameState;
-                presences = newState.presences;
-            }
-        };
+            joinRoomRealtime: joinRoomRealtime
+        });
     </script>
 </body>
 </html>

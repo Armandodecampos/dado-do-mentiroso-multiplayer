@@ -1136,7 +1136,7 @@
             return count;
         }
 
-        async function handleGameStateUpdateForLeavingPlayer(leavingPlayerId) {
+        async function handleGameStateUpdateForLeavingPlayer(leavingPlayerId, leavingName = 'Um jogador') {
             if (!gameState || !gameStarted || !gameState.players[leavingPlayerId]) {
                 return; // Jogo não está ativo ou jogador não está no jogo.
             }
@@ -1148,38 +1148,11 @@
                 delete updatedGameState.players[leavingPlayerId];
                 updatedGameState.turnOrder = updatedGameState.turnOrder.filter(id => id !== leavingPlayerId);
 
-                const leavingName = presences[leavingPlayerId]?.[0]?.name || 'Um jogador';
                 updatedGameState.bidHistory.push({ type: 'status', message: `${leavingName} saiu do jogo.` });
 
                 if (updatedGameState.turnOrder.length < 2) {
-                    const winnerId = updatedGameState.turnOrder.length === 1 ? updatedGameState.turnOrder[0] : null;
-                    const leavingName = presences[leavingPlayerId]?.[0]?.name || 'Um jogador';
-
-                    let finalMessage = `O jogador ${leavingName} saiu.`;
-                    if (winnerId) {
-                        const winnerName = presences[winnerId]?.[0]?.name || 'O último jogador';
-                        finalMessage += `<br><br><strong class="text-amber-400 text-xl">${winnerName.toUpperCase()} É O VENCEDOR!</strong>`;
-                    } else {
-                        finalMessage += `<br>Não há jogadores suficientes para continuar.`;
-                    }
-
-                    const finalGameState = {
-                        ...updatedGameState,
-                        gameWinner: winnerId,
-                        currentTurnMessage: 'Jogo Finalizado',
-                        roundInfo: {
-                            phase: 'reveal',
-                            message: finalMessage,
-                            losers: [],
-                            actualQuantity: 0,
-                            actionTaker: null,
-                            bidder: null,
-                            loser: winnerId // Próximo jogador (mesmo que seja o vencedor)
-                        }
-                    };
-
                     await sb.from('rooms').update({ game_started: false }).eq('room_code', currentRoom.room_code);
-                    await updateAndBroadcastGameState(finalGameState, false, winnerId ? 'winner_declared' : 'not_enough_players');
+                    await updateAndBroadcastGameState(null, false, { reason: 'not_enough_players', leavingPlayerName: leavingName });
                     return;
                 }
 
@@ -1599,8 +1572,13 @@
                     gameState = payload.gameState; // Pode ser nulo se o jogo terminou
 
                     // Lógica adicional para tratar o motivo do fim do jogo
-                    if (payload.reason === 'not_enough_players') {
-                        showToast("O jogo terminou por falta de jogadores.");
+                    if (payload.reason === 'not_enough_players' || (payload.reason && payload.reason.reason === 'not_enough_players')) {
+                        const leavingName = payload.reason?.leavingPlayerName || 'Um jogador';
+                        showToast(`Fim de Jogo! O jogador ${leavingName} saiu. Sala fechada por jogadores insuficientes.`);
+                        // Redireciona automaticamente para o lobby após exibir a mensagem
+                        setTimeout(() => {
+                            if (currentRoom) leaveRoomBtn.click();
+                        }, 2500);
                     }
 
                     renderRoomUI(); // Sempre renderiza a UI da sala (que mostrará o lobby se gameStarted for falso)
@@ -1712,7 +1690,7 @@
                 // Não faça nada se este cliente for o anfitrião que está saindo
                 if (currentUser.id === currentRoom.creator_id) return;
 
-                showToast("O anfitrião encerrou a sala. Você será redirecionado para o lobby.");
+                showToast("O anfitrião se desconectou. A sala foi fechada.");
                 // Aguarda um momento para o usuário ler a mensagem e então executa a ação de sair
                 setTimeout(() => {
                     leaveRoomBtn.click(); // Simula o clique no botão de sair
@@ -1724,6 +1702,7 @@
             // Ouvinte para detectar quando um jogador sai
             currentRoomChannel.on('presence', { event: 'leave' }, async ({ key, leftPresences }) => {
                 const leavingPlayerId = key;
+                const leavingName = leftPresences?.[0]?.name || 'Um jogador';
 
                 // CORREÇÃO: Implementa um período de carência para a saída do anfitrião.
                 // Isso evita uma condição de corrida onde o anfitrião parece sair imediatamente após criar a sala.
@@ -1738,7 +1717,7 @@
 
                 if (leavingPlayerId !== currentRoom.creator_id && gameStarted && currentUser.id === currentRoom.creator_id) {
                     console.log(`O jogador ${leavingPlayerId} saiu. O anfitrião está atualizando o estado do jogo.`);
-                    await handleGameStateUpdateForLeavingPlayer(leavingPlayerId);
+                    await handleGameStateUpdateForLeavingPlayer(leavingPlayerId, leavingName);
                 }
             });
 

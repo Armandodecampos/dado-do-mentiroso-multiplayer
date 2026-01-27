@@ -396,7 +396,7 @@
                         <div class="flex gap-2">
                             <button id="bid-btn" class="flex-1 bg-[#003366] text-white font-bold py-3 px-4 rounded-lg transition-transform transform hover:scale-105 shadow-md text-sm sm:text-base border-b-4 border-[#001a33]">Apostar</button>
                             <button id="challenge-btn" class="flex-1 bg-[#990000] text-white font-bold py-3 px-4 rounded-lg transition-transform transform hover:scale-105 shadow-md text-sm sm:text-base border-b-4 border-[#660000]" disabled>Duvidar</button>
-                            <button id="exact-btn" class="flex-1 bg-[#4a2c2a] text-white font-bold py-3 px-4 rounded-lg transition-transform transform hover:scale-105 shadow-md text-sm sm:text-base border-b-4 border-[#2c1a1a]" disabled>Confirmar</button>
+                            <button id="exact-btn" class="flex-1 bg-[#4a2c2a] text-white font-bold py-3 px-4 rounded-lg transition-transform transform hover:scale-105 shadow-md text-sm sm:text-base border-b-4 border-[#2c1a1a]" disabled>Cravar</button>
                         </div>
                     </div>
                 </div>
@@ -895,9 +895,9 @@
             document.getElementById('game-over-overlay').classList.add('hidden');
             roundActionOverlay.classList.add('hidden');
 
-            // Oculta o overlay de resultado da rodada por padrão, a menos que estejamos na fase de revelação.
+            // Oculta o overlay de resultado da rodada apenas se o jogo for resetado ou uma nova partida começar.
             const roundResultOverlay = document.getElementById('round-result-overlay');
-            if (!gameState || gameState.roundInfo?.phase !== 'reveal') {
+            if (!gameState || (gameState.round === 1 && gameState.turn === 1 && gameState.roundInfo?.phase !== 'reveal')) {
                 roundResultOverlay.classList.add('hidden');
                 roundResultOverlay.classList.add('opacity-0');
             }
@@ -2009,7 +2009,7 @@
                 roundInfo: {
                     ...gameState.roundInfo,
                     phase: 'exact_bid',
-                    actionTaker: currentUser.id, // O jogador que clicou em "Confirmar"
+                    actionTaker: currentUser.id, // O jogador que clicou em "Cravar"
                     bidder: gameState.lastBidder,    // O jogador que fez o último lance
                 }
             };

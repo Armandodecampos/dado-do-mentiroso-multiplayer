@@ -836,6 +836,12 @@
         async function handleGameAction() {
             if (!currentRoomChannel || !currentUser || currentUser.id !== currentRoom.creator_id) return;
 
+            // Limpa qualquer temporizador de rodada pendente para evitar transições inesperadas
+            if (nextRoundTimeoutId) {
+                clearTimeout(nextRoundTimeoutId);
+                nextRoundTimeoutId = null;
+            }
+
             const playerIds = Object.keys(presences);
             if (playerIds.length < 2) {
                 showLobbyMessage("São necessários pelo menos 2 jogadores para começar.", true);
@@ -889,6 +895,12 @@
             document.getElementById('game-over-overlay').classList.add('hidden');
             roundActionOverlay.classList.add('hidden');
 
+            // Oculta o overlay de resultado da rodada por padrão, a menos que estejamos na fase de revelação.
+            const roundResultOverlay = document.getElementById('round-result-overlay');
+            if (!gameState || gameState.roundInfo?.phase !== 'reveal') {
+                roundResultOverlay.classList.add('hidden');
+                roundResultOverlay.classList.add('opacity-0');
+            }
 
             // Se não houver jogo em andamento, não há mais nada a fazer.
             if (!gameState || !currentUser) return;
@@ -2093,7 +2105,7 @@
                         turn: 1,
                         round: gameState.round + 1,
                         currentPlayer: nextPlayerId, // Usa o ID do jogador determinado de forma segura
-                        roundInfo: { reveal: false, message: '' },
+                        roundInfo: { phase: 'bidding', actionTaker: null, bidder: null, challenger: null, loser: null, losers: [], actualQuantity: 0, message: '' },
                         bidHistory: [],
                     };
 

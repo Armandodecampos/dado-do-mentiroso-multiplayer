@@ -1153,14 +1153,30 @@
 
                 if (updatedGameState.turnOrder.length < 2) {
                     const winnerId = updatedGameState.turnOrder.length === 1 ? updatedGameState.turnOrder[0] : null;
-                    const finalGameState = { ...updatedGameState, gameWinner: winnerId };
+                    const leavingName = presences[leavingPlayerId]?.[0]?.name || 'Um jogador';
 
+                    let finalMessage = `O jogador ${leavingName} saiu.`;
                     if (winnerId) {
                         const winnerName = presences[winnerId]?.[0]?.name || 'O último jogador';
-                        finalGameState.bidHistory.push({ type: 'status', message: `Fim do Jogo! ${winnerName} venceu.` });
+                        finalMessage += `<br><br><strong class="text-amber-400 text-xl">${winnerName.toUpperCase()} É O VENCEDOR!</strong>`;
                     } else {
-                        finalGameState.bidHistory.push({ type: 'status', message: `Fim do Jogo! Não há jogadores suficientes.` });
+                        finalMessage += `<br>Não há jogadores suficientes para continuar.`;
                     }
+
+                    const finalGameState = {
+                        ...updatedGameState,
+                        gameWinner: winnerId,
+                        currentTurnMessage: 'Jogo Finalizado',
+                        roundInfo: {
+                            phase: 'reveal',
+                            message: finalMessage,
+                            losers: [],
+                            actualQuantity: 0,
+                            actionTaker: null,
+                            bidder: null,
+                            loser: winnerId // Próximo jogador (mesmo que seja o vencedor)
+                        }
+                    };
 
                     await sb.from('rooms').update({ game_started: false }).eq('room_code', currentRoom.room_code);
                     await updateAndBroadcastGameState(finalGameState, false, winnerId ? 'winner_declared' : 'not_enough_players');
@@ -1548,6 +1564,11 @@
                     list.innerHTML = '<li class="text-gray-500">Ninguém aqui ainda...</li>';
                 }
             });
+
+            // Se o modal de configurações estiver aberto, atualiza as informações lá também
+            if (!settingsModal.classList.contains('hidden')) {
+                populateRoomInfo();
+            }
 
             // Atualiza a UI da sala (ex: habilitar/desabilitar botão de iniciar)
             renderRoomUI();

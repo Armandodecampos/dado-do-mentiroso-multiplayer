@@ -756,8 +756,15 @@
 
         async function saveUserCurrentRoom(roomCode) {
             if (!currentUser) return;
-            const { error } = await sb.from('profiles').update({ last_room: roomCode }).eq('id', currentUser.id);
-            if (error) console.error('Erro ao salvar sala no perfil:', error.message);
+            try {
+                const { error } = await Promise.race([
+                    sb.from('profiles').update({ last_room: roomCode }).eq('id', currentUser.id),
+                    timeout(5000, 'A atualização do perfil demorou muito.')
+                ]);
+                if (error) console.error('Erro ao salvar sala no perfil:', error.message);
+            } catch (err) {
+                console.error('Erro de timeout ao salvar sala no perfil:', err.message);
+            }
         }
         async function clearUserCurrentRoom() { await saveUserCurrentRoom(null); }
 
@@ -851,7 +858,10 @@
             toggleLoading(true); // Mostra o carregamento
             try {
                 // 1. Atualiza o banco de dados para marcar o jogo como iniciado.
-                const { error } = await sb.from('rooms').update({ game_started: true }).eq('room_code', currentRoom.room_code);
+                const { error } = await Promise.race([
+                    sb.from('rooms').update({ game_started: true }).eq('room_code', currentRoom.room_code),
+                    timeout(10000, 'A inicialização do jogo no servidor demorou muito.')
+                ]);
                 if (error) {
                     throw new Error(`Erro ao iniciar o jogo: ${error.message}`);
                 }
@@ -1151,7 +1161,11 @@
                 updatedGameState.bidHistory.push({ type: 'status', message: `${leavingName} saiu do jogo.` });
 
                 if (updatedGameState.turnOrder.length < 2) {
-                    await sb.from('rooms').update({ game_started: false }).eq('room_code', currentRoom.room_code);
+                    await Promise.race([
+                        sb.from('rooms').update({ game_started: false }).eq('room_code', currentRoom.room_code),
+                        timeout(5000)
+                    ]).catch(e => console.warn("Falha ao atualizar sala após saída de jogador (timeout):", e));
+
                     await updateAndBroadcastGameState(null, false, { reason: 'not_enough_players', leavingPlayerName: leavingName });
                     return;
                 }
@@ -1240,15 +1254,18 @@
                 const email = document.getElementById('signup-email').value;
                 const password = document.getElementById('signup-password').value;
 
-                const { error } = await sb.auth.signUp({
-                    email: email,
-                    password: password,
-                    options: {
-                        data: {
-                            name: name
+                const { error } = await Promise.race([
+                    sb.auth.signUp({
+                        email: email,
+                        password: password,
+                        options: {
+                            data: {
+                                name: name
+                            }
                         }
-                    }
-                });
+                    }),
+                    timeout(15000, 'O cadastro demorou muito.')
+                ]);
 
                 if (error) {
                     if (error.message.includes('profiles_name_key')) {
@@ -1269,7 +1286,10 @@
             e.preventDefault();
             toggleLoading(true);
             try {
-                const { error } = await sb.auth.signInWithPassword({ email: document.getElementById('login-email').value, password: document.getElementById('login-password').value });
+                const { error } = await Promise.race([
+                    sb.auth.signInWithPassword({ email: document.getElementById('login-email').value, password: document.getElementById('login-password').value }),
+                    timeout(15000, 'O login demorou muito.')
+                ]);
                 if (error) showAuthMessage(error.message, true);
                 else { showAuthMessage(''); loginForm.reset(); }
             } catch (err) {
@@ -1284,9 +1304,12 @@
             toggleLoading(true);
             const email = document.getElementById('reset-email').value;
             try {
-                const { error } = await sb.auth.resetPasswordForEmail(email, {
-                    redirectTo: window.location.href, // Redireciona de volta para a mesma página
-                });
+                const { error } = await Promise.race([
+                    sb.auth.resetPasswordForEmail(email, {
+                        redirectTo: window.location.href, // Redireciona de volta para a mesma página
+                    }),
+                    timeout(15000, 'A solicitação de recuperação demorou muito.')
+                ]);
                 if (error) {
                     showAuthMessage(error.message, true);
                 } else {
@@ -1304,7 +1327,10 @@
             toggleLoading(true);
             try {
                 await leaveRoomRealtime();
-                await sb.auth.signOut();
+                await Promise.race([
+                    sb.auth.signOut(),
+                    timeout(5000)
+                ]).catch(e => console.warn("SignOut timed out", e));
             } catch (err) {
                 console.error("Erro ao fazer logout:", err);
                 // Mesmo que haja um erro, o usuário provavelmente quer ser deslogado
@@ -1410,7 +1436,10 @@
             const newName = document.getElementById('new-name').value;
 
             try {
-                const { error } = await sb.from('profiles').update({ name: newName }).eq('id', currentUser.id);
+                const { error } = await Promise.race([
+                    sb.from('profiles').update({ name: newName }).eq('id', currentUser.id),
+                    timeout(10000, 'A atualização do nome demorou muito.')
+                ]);
                 if (error) {
                     if (error.message.includes('profiles_name_key')) {
                         profileMessage.textContent = 'O nome de usuário já existe.';
@@ -1438,7 +1467,10 @@
             const newPassword = document.getElementById('new-password').value;
 
             try {
-                const { error } = await sb.auth.updateUser({ password: newPassword });
+                const { error } = await Promise.race([
+                    sb.auth.updateUser({ password: newPassword }),
+                    timeout(10000, 'A atualização da senha demorou muito.')
+                ]);
                 if (error) {
                     profileMessage.textContent = error.message;
                     profileMessage.className = 'text-center text-sm mt-4 text-red-400';
@@ -1724,8 +1756,20 @@
             currentRoomChannel.subscribe(async (status) => {
                 if (status === 'SUBSCRIBED') {
                     channelSubscribedAt = Date.now(); // Define o tempo de inscrição
-                    const { data: profile } = await sb.from('profiles').select('name').eq('id', currentUser.id).single();
-                    await currentRoomChannel.track({ name: profile.name || currentUser.email, email: currentUser.email, joined_at: new Date().toISOString() });
+                    try {
+                        const { data: profile } = await Promise.race([
+                            sb.from('profiles').select('name').eq('id', currentUser.id).single(),
+                            timeout(5000)
+                        ]);
+                        await Promise.race([
+                            currentRoomChannel.track({ name: profile?.name || currentUser.email, email: currentUser.email, joined_at: new Date().toISOString() }),
+                            timeout(5000)
+                        ]);
+                    } catch (err) {
+                        console.error("Erro ao rastrear presença no canal:", err);
+                        // Tenta rastrear com dados mínimos se o perfil falhar
+                        currentRoomChannel.track({ name: currentUser.email, email: currentUser.email, joined_at: new Date().toISOString() }).catch(() => {});
+                    }
                 }
             });
         }
@@ -1733,8 +1777,16 @@
         async function leaveRoomRealtime() {
             if (currentRoomChannel) {
                 try {
-                    await currentRoomChannel.untrack();
-                    await sb.removeChannel(currentRoomChannel);
+                    // Tenta untrack e removeChannel com timeout para evitar travamentos
+                    await Promise.race([
+                        currentRoomChannel.untrack(),
+                        timeout(3000)
+                    ]).catch(e => console.warn("Untrack timed out or failed", e));
+
+                    await Promise.race([
+                        sb.removeChannel(currentRoomChannel),
+                        timeout(3000)
+                    ]).catch(e => console.warn("RemoveChannel timed out or failed", e));
                 } catch (error) {
                     console.error('Erro ao sair do canal:', error);
                 }
@@ -2148,31 +2200,46 @@
         async function handleUserLoggedIn(session) {
             if (!session) return; // Adiciona uma verificação para evitar erros se a sessão for nula
             currentUser = session.user;
-            const { data: profile, error } = await sb.from('profiles').select('name, last_room').eq('id', currentUser.id).single();
-            if (error) {
-                console.error('Erro ao buscar perfil:', error.message);
-                welcomeMessage.textContent = `Bem-vindo, ${currentUser.email}`;
-                showView('lobby-view'); // Falha para o lobby por segurança
-                return;
-            }
-            if (profile) {
-                welcomeMessage.textContent = `Bem-vindo, ${profile.name || currentUser.email}`;
-            }
+            try {
+                const { data: profile, error } = await Promise.race([
+                    sb.from('profiles').select('name, last_room').eq('id', currentUser.id).single(),
+                    timeout(10000, 'A busca pelo perfil demorou muito.')
+                ]);
 
-            if (profile && profile.last_room) {
-                const { data: roomData } = await sb.from('rooms').select('room_code, creator_id').eq('room_code', profile.last_room).maybeSingle();
-                if (roomData) {
-                    currentRoom = roomData; // Armazena detalhes da sala
-                    roomCodeDisplay.textContent = roomData.room_code;
-                    showView('room-view');
-                    setRoomViewMode(true); // Entra no modo de tela cheia ao recarregar
-                    joinRoomRealtime(roomData.room_code);
-                    renderRoomUI(); // Renderiza a UI da sala
+                if (error) {
+                    console.error('Erro ao buscar perfil:', error.message);
+                    welcomeMessage.textContent = `Bem-vindo, ${currentUser.email}`;
+                    showView('lobby-view'); // Falha para o lobby por segurança
+                    return;
+                }
+                if (profile) {
+                    welcomeMessage.textContent = `Bem-vindo, ${profile.name || currentUser.email}`;
+                }
+
+                if (profile && profile.last_room) {
+                    const { data: roomData, error: roomError } = await Promise.race([
+                        sb.from('rooms').select('room_code, creator_id').eq('room_code', profile.last_room).maybeSingle(),
+                        timeout(10000, 'A busca pela última sala demorou muito.')
+                    ]);
+
+                    if (roomError) throw roomError;
+
+                    if (roomData) {
+                        currentRoom = roomData; // Armazena detalhes da sala
+                        roomCodeDisplay.textContent = roomData.room_code;
+                        showView('room-view');
+                        setRoomViewMode(true); // Entra no modo de tela cheia ao recarregar
+                        joinRoomRealtime(roomData.room_code);
+                        renderRoomUI(); // Renderiza a UI da sala
+                    } else {
+                        await clearUserCurrentRoom();
+                        showView('lobby-view');
+                    }
                 } else {
-                    await clearUserCurrentRoom();
                     showView('lobby-view');
                 }
-            } else {
+            } catch (err) {
+                console.error("Erro em handleUserLoggedIn:", err);
                 showView('lobby-view');
             }
         }
@@ -2184,7 +2251,10 @@
             const newPassword = document.getElementById('update-password').value;
 
             try {
-                const { error } = await sb.auth.updateUser({ password: newPassword });
+                const { error } = await Promise.race([
+                    sb.auth.updateUser({ password: newPassword }),
+                    timeout(15000, 'A atualização da senha demorou muito.')
+                ]);
 
                 if (error) {
                     showAuthMessage(error.message, true);
@@ -2241,7 +2311,10 @@
                 console.error("Erro durante a mudança de estado de autenticação:", error);
                 // Garante que o usuário veja a tela de login se algo der errado
                 await leaveRoomRealtime();
-                await sb.auth.signOut().catch(e => console.error('O logout falhou no erro:', e));
+                await Promise.race([
+                    sb.auth.signOut(),
+                    timeout(5000)
+                ]).catch(e => console.error('O logout falhou no erro:', e));
                 showView('auth-view');
             }
         });

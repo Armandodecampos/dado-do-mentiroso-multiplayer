@@ -11,13 +11,16 @@ async def main():
         # Construct the file path with a cache-busting query parameter
         file_path = f"file://{os.path.abspath('index.htm')}?v={int(time.time())}"
 
-        await page.goto(file_path, wait_until='networkidle')
-        await page.wait_for_timeout(2000) # Wait for any JS to execute
-
-        # Ensure the output directory exists
-        os.makedirs("/home/jules/verification", exist_ok=True)
-
-        await page.screenshot(path="/home/jules/verification/cache_bust_attempt.png", full_page=True)
-        await browser.close()
+        try:
+            await page.goto(file_path, wait_until='domcontentloaded')
+            await page.wait_for_timeout(2000) # Wait for any JS to execute
+            # Ensure the output directory exists
+            os.makedirs("/home/jules/verification", exist_ok=True)
+            await page.screenshot(path="/home/jules/verification/cache_bust_attempt.png", full_page=True)
+            print("Screenshot taken successfully")
+        except Exception as e:
+            print(f"Error during playwright: {e}")
+        finally:
+            await browser.close()
 
 asyncio.run(main())

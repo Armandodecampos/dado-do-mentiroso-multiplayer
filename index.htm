@@ -424,8 +424,8 @@
                         <button id="close-round-result-btn" class="bg-[#e5a938] text-[#4a2c2a] font-bold py-3 px-8 rounded-lg transition-all duration-300 transform hover:scale-110 shadow-lg hover:shadow-[#e5a938]/50 text-lg border-b-4 border-[#c08e2a]">Fechar</button>
                         <!-- Botões de Fim de Jogo (escondidos por padrão) -->
                         <div id="end-game-buttons" class="hidden mt-4 space-y-2">
-                             <button id="final-back-to-lobby-btn" class="bg-amber-500 text-slate-900 font-bold py-3 px-8 rounded-lg transition-all duration-300 transform hover:scale-110 shadow-lg hover:shadow-amber-500/50 text-xl border-b-4 border-amber-700">Voltar para a Sala</button>
-                             <button id="final-leave-room-btn" class="bg-gray-600 text-white font-bold py-2 px-6 rounded-lg transition-all duration-300 transform hover:scale-105 shadow-lg text-md border-b-4 border-gray-800">Sair da Sala</button>
+                             <button id="final-back-to-lobby-btn" class="bg-[#003366] text-white font-bold py-3 px-8 rounded-lg transition-all duration-300 transform hover:scale-110 shadow-lg text-lg border-b-4 border-[#001a33]">Sair</button>
+                             <button id="final-leave-room-btn" class="bg-[#003366] text-white font-bold py-3 px-8 rounded-lg transition-all duration-300 transform hover:scale-110 shadow-lg text-lg border-b-4 border-[#001a33]">Sair</button>
                         </div>
                     </div>
                 </div>
@@ -1606,16 +1606,16 @@
                                 const faceIcon = diceSVGTags[currentBid.face].replace('class="w-8 h-8"', 'class="w-6 h-6 inline-block"');
 
                                 if (bidWasCorrect) {
-                                    roundMessage = `O lance era <span class="text-green-400 font-bold">VERDADEIRO</span>! Havia ${actualQuantity} x ${faceIcon}. ${actionTakerName} perde um dado.`;
+                                    roundMessage = `O lance era <span class="text-green-400 font-bold">VERDADEIRO</span>! Havia ${actualQuantity} x ${faceIcon}.<br>${actionTakerName} perde um dado.`;
                                 } else {
-                                    roundMessage = `O lance era <span class="text-green-400 font-bold">FALSO</span>! Havia apenas ${actualQuantity} x ${faceIcon}. ${bidderName} perde um dado.`;
+                                    roundMessage = `O lance era <span class="text-green-400 font-bold">FALSO</span>! Havia apenas ${actualQuantity} x ${faceIcon}.<br>${bidderName} perde um dado.`;
                                 }
                             } else { // exact_bid
                                 const bidWasExact = actualQuantity === currentBid.quantity;
                                 const faceIcon = diceSVGTags[currentBid.face].replace('class="w-8 h-8"', 'class="w-6 h-6 inline-block"');
 
                                 if (bidWasExact) {
-                                    roundMessage = `${actionTakerName} <span class="text-green-400 font-bold">CRAVOU</span>! Havia exatamente ${actualQuantity} x ${faceIcon}. Todos os outros perdem um dado.`;
+                                    roundMessage = `${actionTakerName} <span class="text-green-400 font-bold">CRAVOU</span>! Havia exatamente ${actualQuantity} x ${faceIcon}.<br>Todos os outros perdem um dado.`;
                                     losers = Object.keys(updatedPlayers).filter(id => id !== actionTaker);
                                     for (const loserId of losers) {
                                         updatedPlayers[loserId].diceCount = Math.max(0, updatedPlayers[loserId].diceCount - 1);
@@ -1624,7 +1624,7 @@
                                 } else {
                                     losers = [actionTaker];
                                     updatedPlayers[actionTaker].diceCount = Math.max(0, updatedPlayers[actionTaker].diceCount - 1);
-                                    roundMessage = `${actionTakerName} errou! Havia ${actualQuantity} x ${faceIcon}, não ${currentBid.quantity}. Ele perde um dado.`;
+                                    roundMessage = `${actionTakerName} <span class="text-red-500 font-bold">ERROU</span>! Havia ${actualQuantity} x ${faceIcon}, não ${currentBid.quantity}.<br>Ele perde um dado.`;
                                     loser = actionTaker; // Próximo a jogar
                                 }
                             }

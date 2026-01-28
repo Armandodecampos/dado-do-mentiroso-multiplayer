@@ -1033,7 +1033,10 @@
             if (currentUser.id === gameState.currentPlayer) {
                 turnInfo.textContent = 'É a sua vez';
             } else {
-                turnInfo.textContent = gameState.currentTurnMessage || '';
+                // Constrói a mensagem de turno dinamicamente para garantir que o nome esteja sempre atualizado
+                const cpPresence = presences[gameState.currentPlayer]?.[0];
+                const cpName = cpPresence?.name || cpPresence?.email || 'Jogador';
+                turnInfo.textContent = `É a vez de ${cpName}.`;
             }
 
             // 4. Atualiza o Histórico de Jogadas (Chat-like)
@@ -2054,7 +2057,8 @@
             newHistory.push({ type: 'bid', playerId: currentUser.id, quantity, face });
 
 
-                const nextPlayerName = presences[nextPlayerId]?.[0].name || presences[nextPlayerId]?.[0].email;
+                const nextPlayerPresence = presences[nextPlayerId]?.[0];
+                const nextPlayerName = nextPlayerPresence?.name || nextPlayerPresence?.email || 'Jogador';
             // Atualiza o estado do jogo com o novo lance
             const updatedGameState = {
                 ...gameState,
@@ -2180,7 +2184,8 @@
                         bidHistory: [],
                     };
 
-                    const nextPlayerName = presences[nextRoundState.currentPlayer]?.[0].name || presences[nextRoundState.currentPlayer]?.[0].email;
+                    const nextPlayerPresence = presences[nextRoundState.currentPlayer]?.[0];
+                    const nextPlayerName = nextPlayerPresence?.name || nextPlayerPresence?.email || 'Jogador';
                     nextRoundState.currentTurnMessage = `É a vez de ${nextPlayerName}.`;
                     nextRoundState.bidHistory.push({ type: 'status', message: `Rodada ${nextRoundState.round} começou!`});
 

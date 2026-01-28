@@ -357,7 +357,7 @@
                     <div class="w-8"></div>
                     <div id="turn-info" class="flex-1 text-center text-2xl font-bold truncate font-title"></div>
                     <!-- Botão de Engrenagem (Configurações da Sala) -->
-                    <button id="settings-btn" class="text-[#e5a938] hover:text-white transition-colors duration-200">
+                    <button id="settings-btn" class="text-[#e5a938] bg-[#4a2c2a] p-2 rounded-full shadow-lg hover:bg-[#5a3c3a] transition-colors duration-200">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
                             <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
@@ -539,20 +539,26 @@
         // Expor utilitários de teste PRIMEIRO para garantir que estejam disponíveis
         window.testUtils = {
             setState: (newState) => {
-                // Adiciona uma verificação para evitar erros se o estado for nulo
                 if (!newState) {
                     currentUser = null;
                     currentRoom = null;
-                    gameStarted = false;
+                    room = null;
                     gameState = null;
                     presences = {};
                     return;
                 }
-                currentUser = newState.currentUser;
-                currentRoom = newState.currentRoom;
-                gameStarted = newState.gameStarted;
-                gameState = newState.gameState;
-                presences = newState.presences;
+                if (newState.currentUser !== undefined) currentUser = newState.currentUser;
+                if (newState.currentRoom !== undefined) currentRoom = newState.currentRoom;
+                if (newState.room !== undefined) room = newState.room;
+                if (newState.gameStarted !== undefined) gameStarted = newState.gameStarted;
+                if (newState.gameState !== undefined) gameState = newState.gameState;
+                if (newState.presences !== undefined) presences = newState.presences;
+                if (newState.currentView !== undefined) {
+                    currentView = newState.currentView;
+                    showView(currentView);
+                }
+                renderRoomUI();
+                renderGameUI();
             }
         };
 
@@ -872,7 +878,14 @@
             document.getElementById(viewId).classList.remove('hidden');
 
             // Controla a visibilidade dos botões de configuração com base na view
-            topRightControls.classList.toggle('hidden', viewId !== 'lobby-view');
+            // Agora visível no Login e Lobby
+            const isAuthOrLobby = viewId === 'auth-view' || viewId === 'lobby-view';
+            topRightControls.classList.toggle('hidden', !isAuthOrLobby);
+
+            // O botão de perfil só aparece se o usuário estiver logado
+            if (profileBtn) {
+                profileBtn.classList.toggle('hidden', !currentUser);
+            }
         }
         function generateRoomCode() { return Math.floor(Math.random() * 900000 + 100000).toString(); }
 

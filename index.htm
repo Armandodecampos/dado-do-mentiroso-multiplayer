@@ -530,6 +530,14 @@
     <audio id="challenge-sound" src="https://dl.dropbox.com/scl/fi/qhj2u85ycdb9j17wspl32/desafio-duvida.mp3?rlkey=o3s4ew3k94132338c0b5n9a8d&st=w1g9j5z4&dl=0" preload="auto"></audio>
     <audio id="exact-sound" src="https://dl.dropbox.com/scl/fi/r8l5g4h6f5k9n3m2p1q0w/aposta-exata.mp3?rlkey=s7d6f5g4h3j2k1l0&st=a1b2c3d4&dl=0" preload="auto"></audio>
 
+    <!-- Novos elementos de áudio para a UI -->
+    <audio id="click-sound" src="https://cdn.pixabay.com/audio/2022/03/15/audio_783a4a7511.mp3" preload="auto"></audio>
+    <audio id="transition-sound" src="https://cdn.pixabay.com/audio/2022/03/10/audio_c0336ca104.mp3" preload="auto"></audio>
+    <audio id="lose-die-sound" src="https://cdn.pixabay.com/audio/2022/03/15/audio_f5f6830598.mp3" preload="auto"></audio>
+    <audio id="win-sound" src="https://cdn.pixabay.com/audio/2021/08/04/audio_0625c1539c.mp3" preload="auto"></audio>
+    <audio id="enter-room-sound" src="https://cdn.pixabay.com/audio/2022/03/24/audio_38383a8862.mp3" preload="auto"></audio>
+    <audio id="leave-room-sound" src="https://cdn.pixabay.com/audio/2022/03/15/audio_7179046c87.mp3" preload="auto"></audio>
+
     <script>
         // Expor utilitários de teste PRIMEIRO para garantir que estejam disponíveis
         window.testUtils = {
@@ -550,6 +558,26 @@
                 presences = newState.presences;
             }
         };
+
+        /**
+         * Reproduz um som pelo ID do elemento de áudio.
+         * @param {string} id - O ID do elemento <audio>.
+         */
+        function playSound(id) {
+            const audio = document.getElementById(id);
+            if (audio) {
+                audio.currentTime = 0;
+                audio.play().catch(e => console.warn(`Erro ao tocar som ${id}:`, e));
+            }
+        }
+
+        // Ouvinte global para adicionar som discreto a todos os botões do jogo
+        document.addEventListener('click', (e) => {
+            const target = e.target.closest('button') || (e.target.tagName === 'A' ? e.target : null);
+            if (target) {
+                playSound('click-sound');
+            }
+        });
 
         // --- 1. LÓGICA DE ESTADO de JOGO ---
         /**
@@ -708,6 +736,7 @@
         function showAuthMessage(message, isError = false) { authMessage.textContent = message; authMessage.className = `text-center text-sm mt-4 ${isError ? 'text-red-400' : 'text-green-400'}`; }
         function showLobbyMessage(message, isError = true) { lobbyMessage.textContent = message; lobbyMessage.className = `text-center text-sm mt-4 ${isError ? 'text-red-400' : 'text-green-400'}`; }
         function showView(viewId) {
+            playSound('transition-sound');
             ['auth-view', 'lobby-view', 'room-view', 'how-to-play-view'].forEach(id => document.getElementById(id).classList.add('hidden'));
             document.getElementById(viewId).classList.remove('hidden');
 
@@ -1620,6 +1649,13 @@
                     // Renderiza a UI do jogo se houver um estado de jogo. Isso é crucial para
                     // exibir a tela de "fim de jogo" mesmo quando gameStarted é falso.
                     if (payload.gameState) {
+                        // Efeitos sonoros para eventos específicos do jogo
+                        if (payload.gameState.roundInfo.phase === 'reveal') {
+                            playSound('lose-die-sound');
+                        }
+                        if (payload.reason === 'winner_declared') {
+                            playSound('win-sound');
+                        }
                         renderGameUI();
                     }
 
@@ -1771,6 +1807,7 @@
 
             currentRoomChannel.subscribe(async (status) => {
                 if (status === 'SUBSCRIBED') {
+                    playSound('enter-room-sound');
                     channelSubscribedAt = Date.now(); // Define o tempo de inscrição
                     try {
                         const { data: profile } = await Promise.race([
@@ -1904,6 +1941,7 @@
         });
 
         async function leaveRoom() {
+            playSound('leave-room-sound');
             toggleLoading(true);
             leaveRoomBtn.disabled = true;
 

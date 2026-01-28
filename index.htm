@@ -163,8 +163,19 @@
         </defs>
     </svg>
 
-    <!-- Botão de Perfil (Configurações da Conta) - Visível no Lobby -->
-    <div id="profile-btn-container" class="hidden fixed top-4 right-4 z-50">
+    <!-- Botões de Controle (Música e Perfil) - Visíveis no Lobby -->
+    <div id="top-right-controls" class="hidden fixed top-4 right-4 z-50 flex gap-2">
+        <button id="music-toggle-btn" class="text-[#e5a938] bg-[#4a2c2a] p-2 rounded-full shadow-lg hover:bg-[#5a3c3a] transition-colors duration-200">
+            <!-- Icone de som on -->
+            <svg id="music-on-icon" xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
+            </svg>
+            <!-- Icone de som off -->
+            <svg id="music-off-icon" xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
+                <path stroke-linecap="round" stroke-linejoin="round" d="M17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2" />
+            </svg>
+        </button>
         <button id="profile-btn" class="text-[#e5a938] bg-[#4a2c2a] p-2 rounded-full shadow-lg hover:bg-[#5a3c3a] transition-colors duration-200">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
@@ -547,9 +558,37 @@
 
         let audioCtx = null;
         const SoundEngine = {
+            bgMusic: null,
+            isMuted: false,
             init() {
                 if (!audioCtx) {
                     audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                }
+                if (!this.bgMusic) {
+                    this.bgMusic = new Audio('https://www.dropbox.com/scl/fi/1mntmg3c8ugwtrnsz19az/pan-captain-hook-theme-33481.mp3?rlkey=y6y82dgy94tknomh5k8gf4c7f&st=jigw1p8r&dl=1');
+                    this.bgMusic.loop = true;
+                    this.bgMusic.volume = 0.4;
+                }
+            },
+            updateBGMusic() {
+                this.init();
+                // A música só toca se NÃO estiver no jogo e NÃO estiver silenciada
+                const shouldPlay = !gameStarted && !this.isMuted;
+                if (shouldPlay) {
+                    this.bgMusic.play().catch(e => console.warn("Erro ao tocar música de fundo:", e));
+                } else {
+                    this.bgMusic.pause();
+                }
+            },
+            toggleMusic() {
+                this.isMuted = !this.isMuted;
+                this.updateBGMusic();
+                // Atualiza o ícone do botão
+                const onIcon = document.getElementById('music-on-icon');
+                const offIcon = document.getElementById('music-off-icon');
+                if (onIcon && offIcon) {
+                    onIcon.classList.toggle('hidden', this.isMuted);
+                    offIcon.classList.toggle('hidden', !this.isMuted);
                 }
             },
             play(type) {
@@ -560,18 +599,8 @@
                 const now = audioCtx.currentTime;
 
                 if (type === 'dice-sound') {
-                    for (let i = 0; i < 3; i++) {
-                        const o = audioCtx.createOscillator();
-                        const g = audioCtx.createGain();
-                        o.connect(g); g.connect(audioCtx.destination);
-                        const t = now + i * 0.08;
-                        o.type = 'triangle';
-                        o.frequency.setValueAtTime(120, t);
-                        o.frequency.exponentialRampToValueAtTime(40, t + 0.1);
-                        g.gain.setValueAtTime(0.2, t);
-                        g.gain.linearRampToValueAtTime(0, t + 0.1);
-                        o.start(t); o.stop(t + 0.1);
-                    }
+                    const diceAudio = new Audio('https://dl.dropbox.com/scl/fi/dhwfowme1nwmppdqu5y4g/dice.mp3?rlkey=cclq6ci60apo97o9bawl1wbff&st=70cl8hiu&dl=1');
+                    diceAudio.play().catch(e => console.warn("Erro ao tocar som de dados:", e));
                     return;
                 }
                 if (type === 'win-sound') {
@@ -672,6 +701,9 @@
 
         // Ouvinte global para adicionar som discreto a todos os botões do jogo
         document.addEventListener('click', (e) => {
+            // Garante que a música de fundo comece após a primeira interação do usuário
+            SoundEngine.updateBGMusic();
+
             const target = e.target.closest('button') || (e.target.tagName === 'A' ? e.target : null);
             if (target) {
                 playSound('click-sound');
@@ -749,7 +781,8 @@
         const backToLoginLink = document.getElementById('back-to-login-link');
         const joinRoomForm = document.getElementById('join-room-form');
         const authMessage = document.getElementById('auth-message');
-        const profileBtnContainer = document.getElementById('profile-btn-container'); // Novo botão de perfil
+        const topRightControls = document.getElementById('top-right-controls'); // Controles de música e perfil
+        const musicToggleBtn = document.getElementById('music-toggle-btn');
         const lobbyMessage = document.getElementById('lobby-message');
         const welcomeMessage = document.getElementById('welcome-message');
         const createRoomBtn = document.getElementById('create-room-btn');
@@ -834,11 +867,12 @@
         function showLobbyMessage(message, isError = true) { lobbyMessage.textContent = message; lobbyMessage.className = `text-center text-sm mt-4 ${isError ? 'text-red-400' : 'text-green-400'}`; }
         function showView(viewId) {
             playSound('transition-sound');
+            SoundEngine.updateBGMusic();
             ['auth-view', 'lobby-view', 'room-view', 'how-to-play-view'].forEach(id => document.getElementById(id).classList.add('hidden'));
             document.getElementById(viewId).classList.remove('hidden');
 
             // Controla a visibilidade dos botões de configuração com base na view
-            profileBtnContainer.classList.toggle('hidden', viewId !== 'lobby-view');
+            topRightControls.classList.toggle('hidden', viewId !== 'lobby-view');
         }
         function generateRoomCode() { return Math.floor(Math.random() * 900000 + 100000).toString(); }
 
@@ -1530,6 +1564,10 @@
         }
 
         // Event Listeners
+        musicToggleBtn.addEventListener('click', () => {
+            SoundEngine.toggleMusic();
+        });
+
         profileBtn.addEventListener('click', () => {
             profileMessage.textContent = ''; // Limpa mensagens antigas
             changeNameForm.reset();
@@ -1726,6 +1764,9 @@
                 try {
                     gameStarted = payload.gameStarted;
                     gameState = payload.gameState; // Pode ser nulo se o jogo terminou
+
+                    // Atualiza a música de fundo baseada no estado do jogo
+                    SoundEngine.updateBGMusic();
 
                     // Lógica adicional para tratar o motivo do fim do jogo
                     if (payload.reason === 'not_enough_players' || (payload.reason && payload.reason.reason === 'not_enough_players')) {
@@ -2368,6 +2409,7 @@
         async function handleUserLoggedIn(session) {
             if (!session) return; // Adiciona uma verificação para evitar erros se a sessão for nula
             currentUser = session.user;
+            SoundEngine.updateBGMusic();
             try {
                 const { data: profile, error } = await Promise.race([
                     sb.from('profiles').select('name, last_room').eq('id', currentUser.id).single(),

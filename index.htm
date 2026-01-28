@@ -524,20 +524,6 @@
         <p id="toast-message"></p>
     </div>
 
-    <!-- Elemento de áudio para o som dos dados -->
-    <audio id="dice-sound" src="https://dl.dropbox.com/scl/fi/lawmyuvtabr6nybkd4f6t/jogar-dados.mp3?rlkey=evl8egxa4w0ennfguprqngoy3&st=68x60hc3&dl=0" preload="auto"></audio>
-    <!-- Novos elementos de áudio para as ações -->
-    <audio id="challenge-sound" src="https://dl.dropbox.com/scl/fi/qhj2u85ycdb9j17wspl32/desafio-duvida.mp3?rlkey=o3s4ew3k94132338c0b5n9a8d&st=w1g9j5z4&dl=0" preload="auto"></audio>
-    <audio id="exact-sound" src="https://dl.dropbox.com/scl/fi/r8l5g4h6f5k9n3m2p1q0w/aposta-exata.mp3?rlkey=s7d6f5g4h3j2k1l0&st=a1b2c3d4&dl=0" preload="auto"></audio>
-
-    <!-- Novos elementos de áudio para a UI -->
-    <audio id="click-sound" src="https://cdn.pixabay.com/audio/2022/03/15/audio_783a4a7511.mp3" preload="auto"></audio>
-    <audio id="transition-sound" src="https://cdn.pixabay.com/audio/2022/03/10/audio_c0336ca104.mp3" preload="auto"></audio>
-    <audio id="lose-die-sound" src="https://cdn.pixabay.com/audio/2022/03/15/audio_f5f6830598.mp3" preload="auto"></audio>
-    <audio id="win-sound" src="https://cdn.pixabay.com/audio/2021/08/04/audio_0625c1539c.mp3" preload="auto"></audio>
-    <audio id="enter-room-sound" src="https://cdn.pixabay.com/audio/2022/03/24/audio_38383a8862.mp3" preload="auto"></audio>
-    <audio id="leave-room-sound" src="https://cdn.pixabay.com/audio/2022/03/15/audio_7179046c87.mp3" preload="auto"></audio>
-
     <script>
         // Expor utilitários de teste PRIMEIRO para garantir que estejam disponíveis
         window.testUtils = {
@@ -559,16 +545,129 @@
             }
         };
 
+        let audioCtx = null;
+        const SoundEngine = {
+            init() {
+                if (!audioCtx) {
+                    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                }
+            },
+            play(type) {
+                this.init();
+                if (audioCtx.state === 'suspended') {
+                    audioCtx.resume();
+                }
+                const now = audioCtx.currentTime;
+
+                if (type === 'dice-sound') {
+                    for (let i = 0; i < 3; i++) {
+                        const o = audioCtx.createOscillator();
+                        const g = audioCtx.createGain();
+                        o.connect(g); g.connect(audioCtx.destination);
+                        const t = now + i * 0.08;
+                        o.type = 'triangle';
+                        o.frequency.setValueAtTime(120, t);
+                        o.frequency.exponentialRampToValueAtTime(40, t + 0.1);
+                        g.gain.setValueAtTime(0.2, t);
+                        g.gain.linearRampToValueAtTime(0, t + 0.1);
+                        o.start(t); o.stop(t + 0.1);
+                    }
+                    return;
+                }
+                if (type === 'win-sound') {
+                    [523.25, 659.25, 783.99, 1046.50].forEach((freq, i) => {
+                        const o = audioCtx.createOscillator();
+                        const g = audioCtx.createGain();
+                        o.connect(g); g.connect(audioCtx.destination);
+                        const t = now + i * 0.1;
+                        o.type = 'sine';
+                        o.frequency.setValueAtTime(freq, t);
+                        g.gain.setValueAtTime(0.15, t);
+                        g.gain.linearRampToValueAtTime(0, t + 0.6);
+                        o.start(t); o.stop(t + 0.6);
+                    });
+                    return;
+                }
+
+                const oscillator = audioCtx.createOscillator();
+                const gainNode = audioCtx.createGain();
+                oscillator.connect(gainNode);
+                gainNode.connect(audioCtx.destination);
+
+                switch (type) {
+                    case 'click-sound':
+                        oscillator.type = 'sine';
+                        oscillator.frequency.setValueAtTime(800, now);
+                        oscillator.frequency.exponentialRampToValueAtTime(100, now + 0.1);
+                        gainNode.gain.setValueAtTime(0.1, now);
+                        gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
+                        oscillator.start(now);
+                        oscillator.stop(now + 0.1);
+                        break;
+                    case 'transition-sound':
+                        oscillator.type = 'sine';
+                        oscillator.frequency.setValueAtTime(300, now);
+                        oscillator.frequency.exponentialRampToValueAtTime(600, now + 0.2);
+                        gainNode.gain.setValueAtTime(0.05, now);
+                        gainNode.gain.linearRampToValueAtTime(0, now + 0.2);
+                        oscillator.start(now);
+                        oscillator.stop(now + 0.2);
+                        break;
+                    case 'challenge-sound':
+                        oscillator.type = 'square';
+                        oscillator.frequency.setValueAtTime(180, now);
+                        oscillator.frequency.linearRampToValueAtTime(120, now + 0.3);
+                        gainNode.gain.setValueAtTime(0.05, now);
+                        gainNode.gain.linearRampToValueAtTime(0, now + 0.3);
+                        oscillator.start(now);
+                        oscillator.stop(now + 0.3);
+                        break;
+                    case 'exact-sound':
+                        oscillator.type = 'sine';
+                        oscillator.frequency.setValueAtTime(500, now);
+                        oscillator.frequency.exponentialRampToValueAtTime(1000, now + 0.2);
+                        gainNode.gain.setValueAtTime(0.1, now);
+                        gainNode.gain.linearRampToValueAtTime(0, now + 0.3);
+                        oscillator.start(now);
+                        oscillator.stop(now + 0.3);
+                        break;
+                    case 'lose-die-sound':
+                        oscillator.type = 'triangle';
+                        oscillator.frequency.setValueAtTime(400, now);
+                        oscillator.frequency.exponentialRampToValueAtTime(60, now + 0.5);
+                        gainNode.gain.setValueAtTime(0.2, now);
+                        gainNode.gain.linearRampToValueAtTime(0, now + 0.5);
+                        oscillator.start(now);
+                        oscillator.stop(now + 0.5);
+                        break;
+                    case 'enter-room-sound':
+                        oscillator.type = 'sine';
+                        oscillator.frequency.setValueAtTime(440, now);
+                        oscillator.frequency.exponentialRampToValueAtTime(880, now + 0.15);
+                        gainNode.gain.setValueAtTime(0.1, now);
+                        gainNode.gain.linearRampToValueAtTime(0, now + 0.15);
+                        oscillator.start(now);
+                        oscillator.stop(now + 0.15);
+                        break;
+                    case 'leave-room-sound':
+                        oscillator.type = 'sine';
+                        oscillator.frequency.setValueAtTime(880, now);
+                        oscillator.frequency.exponentialRampToValueAtTime(440, now + 0.15);
+                        gainNode.gain.setValueAtTime(0.1, now);
+                        gainNode.gain.linearRampToValueAtTime(0, now + 0.15);
+                        oscillator.start(now);
+                        oscillator.stop(now + 0.15);
+                        break;
+                }
+            }
+        };
+
         /**
-         * Reproduz um som pelo ID do elemento de áudio.
-         * @param {string} id - O ID do elemento <audio>.
+         * Reproduz um som sintetizado pelo ID.
+         * @param {string} id - O identificador do som.
          */
         function playSound(id) {
-            const audio = document.getElementById(id);
-            if (audio) {
-                audio.currentTime = 0;
-                audio.play().catch(e => console.warn(`Erro ao tocar som ${id}:`, e));
-            }
+            SoundEngine.play(id);
         }
 
         // Ouvinte global para adicionar som discreto a todos os botões do jogo
@@ -698,8 +797,6 @@
         const roundActionOverlay = document.getElementById('round-action-overlay');
         const roundActionContent = document.getElementById('round-action-content');
         const roundActionMessage = document.getElementById('round-action-message');
-        const challengeSound = document.getElementById('challenge-sound');
-        const exactSound = document.getElementById('exact-sound');
         // Novos Elementos da UI do Jogo (Estrutura V2)
         const roundNumberDisplay = document.getElementById('round-number'); // Movido
         const myDiceDisplay = document.getElementById('my-dice-display'); // Movido
@@ -947,8 +1044,6 @@
             const { players, currentPlayer, currentBid, round, roundInfo, gameWinner } = gameState;
             const myPlayerState = players[currentUser.id];
 
-            const diceSound = document.getElementById('dice-sound');
-
 
             // 2. Lógica de Fases da Rodada (NOVO)
             const currentPhase = roundInfo.phase;
@@ -957,14 +1052,13 @@
                 const actionTakerName = presences[roundInfo.actionTaker]?.[0].name || 'Jogador';
                 const bidderName = presences[roundInfo.bidder]?.[0].name || 'Jogador';
                 let actionVerb = '';
-                let soundToPlay = null;
 
                 if (currentPhase === 'challenged') {
                     actionVerb = 'duvidou de';
-                    soundToPlay = challengeSound;
+                    playSound('challenge-sound');
                 } else { // exact_bid
                     actionVerb = 'cravou a aposta de';
-                    soundToPlay = exactSound;
+                    playSound('exact-sound');
                 }
 
                 // Preenche a nova estrutura
@@ -982,7 +1076,6 @@
 
                 // 1. Animação de entrada (slide in)
                 messageContainer.classList.add('animate-slide-in-from-left');
-                if (soundToPlay) soundToPlay.play().catch(e => console.error("Erro ao tocar som:", e));
 
                 // 2. Animação de saída (fade out) após um tempo
                 setTimeout(() => {
@@ -1099,9 +1192,8 @@
                 // ou seja, no início de uma nova rodada (quando o turno é 1).
                 const isNewRound = gameState.turn === 1;
 
-                // Toca o som dos dados se for uma nova rodada e a URL do som for válida.
-                if (isNewRound && diceSound && !diceSound.src.includes('URL_DO_SEU_SOM_AQUI')) {
-                    diceSound.play().catch(e => console.error("Erro ao tocar som:", e));
+                if (isNewRound) {
+                    playSound('dice-sound');
                 }
 
                 myPlayerState.dice.forEach(d => {

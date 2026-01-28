@@ -1747,10 +1747,12 @@
                     }
                 }
 
-                if (leavingPlayerId !== currentRoom.creator_id && gameStarted && currentUser.id === currentRoom.creator_id) {
-                    console.log(`O jogador ${leavingPlayerId} saiu. O anfitrião está atualizando o estado do jogo.`);
-                    await handleGameStateUpdateForLeavingPlayer(leavingPlayerId, leavingName);
-                }
+                // Desativado: Remoção automática de jogadores durante o jogo pode ser problemática
+                // devido a desconexões temporárias no Supabase Presence.
+                // if (leavingPlayerId !== currentRoom.creator_id && gameStarted && currentUser.id === currentRoom.creator_id) {
+                //     console.log(`O jogador ${leavingPlayerId} saiu. O anfitrião está atualizando o estado do jogo.`);
+                //     await handleGameStateUpdateForLeavingPlayer(leavingPlayerId, leavingName);
+                // }
             });
 
             currentRoomChannel.subscribe(async (status) => {
@@ -2021,13 +2023,19 @@
                 }
             }
              // Determina o próximo jogador usando a ordem de turno oficial
-            const { turnOrder } = gameState;
+            const { turnOrder, players } = gameState;
+            let nextPlayerId = null;
             const currentIndex = turnOrder.indexOf(currentUser.id);
-            // Filtra jogadores com 0 dados (eles são pulados no turno)
-            const activePlayers = turnOrder.filter(id => gameState.players[id] && gameState.players[id].diceCount > 0);
-            const activeIndex = activePlayers.indexOf(currentUser.id);
-            const nextActiveIndex = (activeIndex + 1) % activePlayers.length;
-            const nextPlayerId = activePlayers[nextActiveIndex];
+
+            // Procura o próximo jogador com dados a partir do atual na ordem oficial de turnos
+            for (let i = 1; i <= turnOrder.length; i++) {
+                const nextIndex = (currentIndex + i) % turnOrder.length;
+                const potentialId = turnOrder[nextIndex];
+                if (players[potentialId] && players[potentialId].diceCount > 0) {
+                    nextPlayerId = potentialId;
+                    break;
+                }
+            }
 
 
             // Adiciona o lance ao histórico

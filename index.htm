@@ -870,7 +870,7 @@
                 playerIds.sort();
                 const newGameState = createInitialGameState(playerIds, playerIds[0]);
                 newGameState.turnOrder = playerIds;
-                const firstPlayerName = presences[newGameState.currentPlayer]?.[0].name || presences[newGameState.currentPlayer]?.[0].email;
+                const firstPlayerName = presences[newGameState.currentPlayer]?.[0].name || presences[newGameState.currentPlayer]?.[0].email || '...';
                 newGameState.currentTurnMessage = `É a vez de ${firstPlayerName}.`;
 
                 for (const playerId in newGameState.players) {
@@ -1035,7 +1035,7 @@
             } else {
                 // Constrói a mensagem de turno dinamicamente para garantir que o nome esteja sempre atualizado
                 const cpPresence = presences[gameState.currentPlayer]?.[0];
-                const cpName = cpPresence?.name || cpPresence?.email || 'Jogador';
+                const cpName = cpPresence?.name || cpPresence?.email || '...';
                 turnInfo.textContent = `É a vez de ${cpName}.`;
             }
 
@@ -1188,7 +1188,7 @@
                     }
                     if (nextPlayerId) {
                         updatedGameState.currentPlayer = nextPlayerId;
-                        const nextPlayerName = presences[nextPlayerId]?.[0]?.name || presences[nextPlayerId]?.[0]?.email || 'Próximo jogador';
+                        const nextPlayerName = presences[nextPlayerId]?.[0]?.name || presences[nextPlayerId]?.[0]?.email || '...';
                         updatedGameState.currentTurnMessage = `É a vez de ${nextPlayerName}.`;
                     }
                 }
@@ -2058,7 +2058,7 @@
 
 
                 const nextPlayerPresence = presences[nextPlayerId]?.[0];
-                const nextPlayerName = nextPlayerPresence?.name || nextPlayerPresence?.email || 'Jogador';
+                const nextPlayerName = nextPlayerPresence?.name || nextPlayerPresence?.email || '...';
             // Atualiza o estado do jogo com o novo lance
             const updatedGameState = {
                 ...gameState,
@@ -2185,7 +2185,7 @@
                     };
 
                     const nextPlayerPresence = presences[nextRoundState.currentPlayer]?.[0];
-                    const nextPlayerName = nextPlayerPresence?.name || nextPlayerPresence?.email || 'Jogador';
+                    const nextPlayerName = nextPlayerPresence?.name || nextPlayerPresence?.email || '...';
                     nextRoundState.currentTurnMessage = `É a vez de ${nextPlayerName}.`;
                     nextRoundState.bidHistory.push({ type: 'status', message: `Rodada ${nextRoundState.round} começou!`});
 

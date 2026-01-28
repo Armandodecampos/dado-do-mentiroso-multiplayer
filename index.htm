@@ -1747,12 +1747,23 @@
                     }
                 }
 
-                // Desativado: Remoção automática de jogadores durante o jogo pode ser problemática
-                // devido a desconexões temporárias no Supabase Presence.
-                // if (leavingPlayerId !== currentRoom.creator_id && gameStarted && currentUser.id === currentRoom.creator_id) {
-                //     console.log(`O jogador ${leavingPlayerId} saiu. O anfitrião está atualizando o estado do jogo.`);
-                //     await handleGameStateUpdateForLeavingPlayer(leavingPlayerId, leavingName);
-                // }
+                // Remoção de jogadores durante o jogo com um período de carência para desconexões temporárias.
+                if (leavingPlayerId !== currentRoom.creator_id && gameStarted && currentUser.id === currentRoom.creator_id) {
+                    console.log(`O jogador ${leavingName} (${leavingPlayerId}) saiu. Iniciando período de carência para remoção.`);
+
+                    setTimeout(async () => {
+                        // Verifica se o jogador continua desconectado após 8 segundos
+                        if (!currentRoomChannel) return;
+                        const stillGone = !currentRoomChannel.presenceState()[leavingPlayerId];
+
+                        if (stillGone && gameStarted && currentRoom && currentUser && currentUser.id === currentRoom.creator_id) {
+                            console.log(`O jogador ${leavingName} não retornou. Removendo do jogo.`);
+                            await handleGameStateUpdateForLeavingPlayer(leavingPlayerId, leavingName);
+                        } else {
+                            console.log(`O jogador ${leavingName} retornou ou o estado do jogo mudou. Remoção cancelada.`);
+                        }
+                    }, 8000); // 8 segundos de carência
+                }
             });
 
             currentRoomChannel.subscribe(async (status) => {

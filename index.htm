@@ -2144,6 +2144,13 @@
                         players: playersForNextRound, // Mantém os jogadores finais
                         gameWinner: winnerId,
                     };
+
+                    // Atualiza o banco de dados para marcar o jogo como finalizado.
+                    await Promise.race([
+                        sb.from('rooms').update({ game_started: false }).eq('room_code', currentRoom.room_code),
+                        timeout(5000)
+                    ]).catch(e => console.warn("Falha ao atualizar banco de dados no fim do jogo:", e));
+
                     // Transmite o estado de vencedor final. `gameStarted` se torna `false`.
                     await updateAndBroadcastGameState(finalGameState, false, 'winner_declared');
                 } else {
@@ -2214,6 +2221,13 @@
             if (currentUser && currentRoom && currentUser.id === currentRoom.creator_id) {
                 // Hide the overlay before resetting the game state
                 document.getElementById('round-result-overlay').classList.add('hidden');
+
+                // Garante que o banco de dados saiba que o jogo terminou (caso não tenha sido atualizado antes)
+                await Promise.race([
+                    sb.from('rooms').update({ game_started: false }).eq('room_code', currentRoom.room_code),
+                    timeout(5000)
+                ]).catch(e => console.warn("Falha ao atualizar banco de dados ao voltar para o lobby:", e));
+
                 await updateAndBroadcastGameState(null, false);
             }
         });
@@ -2250,6 +2264,13 @@
 
                     if (roomData) {
                         currentRoom = roomData; // Armazena detalhes da sala
+
+                        // Se for o anfitrião reentrando, garante que a sala esteja aberta para novos jogadores
+                        // já que o estado do jogo não é persistido e ele voltará para o lobby.
+                        if (currentUser.id === roomData.creator_id) {
+                            await sb.from('rooms').update({ game_started: false }).eq('room_code', roomData.room_code);
+                        }
+
                         roomCodeDisplay.textContent = roomData.room_code;
                         showView('room-view');
                         setRoomViewMode(true); // Entra no modo de tela cheia ao recarregar

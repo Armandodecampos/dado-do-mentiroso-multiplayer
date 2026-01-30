@@ -187,8 +187,9 @@
     <div id="main-container" class="w-full min-h-screen md:min-h-0 md:h-auto md:max-w-4xl p-4 md:p-10 bg-[#f3e9d2] md:border-4 border-[#4a2c2a] md:rounded-lg md:shadow-xl relative">
 
         <!-- Overlay de Carregamento -->
-        <div id="loading-overlay" class="absolute inset-0 bg-[#f3e9d2] bg-opacity-75 flex items-center justify-center rounded-lg z-50 hidden">
+        <div id="loading-overlay" class="absolute inset-0 bg-[#f3e9d2] bg-opacity-75 flex flex-col items-center justify-center rounded-lg z-50">
             <div class="loader ease-linear rounded-full border-8 border-t-8 border-[#4a2c2a] h-24 w-24"></div>
+            <p class="mt-4 text-[#4a2c2a] font-bold animate-pulse">Carregando...</p>
         </div>
 
         <!-- Logo -->
@@ -196,14 +197,8 @@
             <img src="https://dl.dropbox.com/scl/fi/9303p8o5ubj1xkr9bovwo/logo-dado-do-mentiroso-2.png?rlkey=tsmt4tfqpuugljykjvxljq9t7&st=gpj40pb9&dl=0" alt="Logo do Jogo" class="w-64">
         </div>
 
-        <!-- #0: View Inicial -->
-        <div id="initial-view" class="hidden text-[#4a2c2a] max-w-md mx-auto flex flex-col gap-4">
-            <button id="proceed-btn" class="w-full bg-[#003366] text-white font-bold py-3 px-4 rounded-lg transition-transform transform hover:scale-105 shadow-md border-b-4 border-[#001a33]">Prosseguir</button>
-            <button id="initial-how-to-play-btn" class="w-full bg-[#4a2c2a] text-white font-bold py-3 px-4 rounded-lg transition-transform transform hover:scale-105 shadow-md border-b-4 border-[#2c1a1a]">Como Jogar</button>
-        </div>
-
         <!-- #1: View de Autenticação -->
-        <div id="auth-view" class="hidden text-[#4a2c2a] max-w-md mx-auto">
+        <div id="auth-view" class="text-[#4a2c2a] max-w-md mx-auto">
             <!-- Abas de Login / Cadastro -->
             <div id="auth-tabs-container" class="flex mb-4 border-b-2 border-[#4a2c2a]">
                 <button id="tab-login" class="flex-1 py-2 text-center font-bold transition-all duration-200 border-b-4 border-[#e5a938] text-opacity-100">Login</button>
@@ -214,11 +209,11 @@
             <form id="login-form">
                 <div class="mb-4">
                     <label for="login-email" class="block text-sm font-bold mb-2">Email</label>
-                    <input type="email" id="login-email" required autocomplete="username" class="w-full px-3 py-2 bg-[#f3e9d2] border-2 border-[#4a2c2a] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#e5a938]" placeholder="voce@email.com">
+                    <input type="email" id="login-email" required class="w-full px-3 py-2 bg-[#f3e9d2] border-2 border-[#4a2c2a] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#e5a938]" placeholder="voce@email.com">
                 </div>
                 <div class="mb-6">
                     <label for="login-password" class="block text-sm font-bold mb-2">Senha</label>
-                    <input type="password" id="login-password" required autocomplete="current-password" class="w-full px-3 py-2 bg-[#f3e9d2] border-2 border-[#4a2c2a] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#e5a938]" placeholder="••••••••">
+                    <input type="password" id="login-password" required class="w-full px-3 py-2 bg-[#f3e9d2] border-2 border-[#4a2c2a] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#e5a938]" placeholder="••••••••">
                 </div>
                 <button type="submit" class="w-full bg-[#003366] text-white font-bold py-3 px-4 rounded-lg transition-transform transform hover:scale-105 shadow-md border-b-4 border-[#001a33]">Entrar</button>
                 <div class="text-center mt-4">
@@ -771,16 +766,14 @@
         const { createClient } = supabase;
         const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
             auth: {
-                // Permite que a sessão do usuário seja salva no localStorage para login automático.
-                persistSession: true
+                // Impede que a sessão do usuário seja salva no localStorage.
+                // Isso resolve o problema de travamento ao recarregar com uma sessão inválida.
+                persistSession: false
             }
         });
 
         // --- 2. REFERÊNCIAS DO DOM ---
         const loadingOverlay = document.getElementById('loading-overlay');
-        const initialView = document.getElementById('initial-view');
-        const proceedBtn = document.getElementById('proceed-btn');
-        const initialHowToPlayBtn = document.getElementById('initial-how-to-play-btn');
         const authView = document.getElementById('auth-view');
         const lobbyView = document.getElementById('lobby-view');
         const howToPlayView = document.getElementById('how-to-play-view'); // Novo
@@ -859,7 +852,6 @@
 
         // --- 3. ESTADO DA APLICAÇÃO ---
         let currentUser = null;
-        let lastMainView = 'initial-view';
         let currentRoomChannel = null;
         let currentBidInput = { quantity: 1, face: 1 }; // Estado local para a UI de lance
         let currentRoom = null;
@@ -883,17 +875,12 @@
         function showView(viewId) {
             playSound('transition-sound');
             SoundEngine.updateBGMusic();
-
-            if (viewId !== 'how-to-play-view') {
-                lastMainView = viewId;
-            }
-
-            ['initial-view', 'auth-view', 'lobby-view', 'room-view', 'how-to-play-view'].forEach(id => document.getElementById(id).classList.add('hidden'));
+            ['auth-view', 'lobby-view', 'room-view', 'how-to-play-view'].forEach(id => document.getElementById(id).classList.add('hidden'));
             document.getElementById(viewId).classList.remove('hidden');
 
             // Controla a visibilidade dos botões de configuração com base na view
             // Agora visível no Login e Lobby
-            const isAuthOrLobby = viewId === 'auth-view' || viewId === 'lobby-view' || viewId === 'initial-view';
+            const isAuthOrLobby = viewId === 'auth-view' || viewId === 'lobby-view';
             topRightControls.classList.toggle('hidden', !isAuthOrLobby);
 
             // O botão de perfil só aparece se o usuário estiver logado
@@ -1529,16 +1516,8 @@
             showView('how-to-play-view');
         });
 
-        proceedBtn.addEventListener('click', () => {
-            showView('auth-view');
-        });
-
-        initialHowToPlayBtn.addEventListener('click', () => {
-            showView('how-to-play-view');
-        });
-
         backToLobbyFromHowToPlayBtn.addEventListener('click', () => {
-            showView(lastMainView);
+            showView('lobby-view');
         });
 
         // --- 6. LÓGICA DO MODAL DE CONFIGURAÇÕES (REFATORADO) ---
@@ -2445,6 +2424,11 @@
             if (!session) return; // Adiciona uma verificação para evitar erros se a sessão for nula
             currentUser = session.user;
             SoundEngine.updateBGMusic();
+
+            // Atualização imediata do nome para melhorar a percepção de velocidade
+            const initialName = currentUser.user_metadata?.name || currentUser.email;
+            welcomeMessage.textContent = `Bem-vindo, ${initialName}`;
+
             try {
                 const { data: profile, error } = await Promise.race([
                     sb.from('profiles').select('name, last_room').eq('id', currentUser.id).single(),
@@ -2557,17 +2541,19 @@
                 else {
                     await leaveRoomRealtime();
                     currentUser = null;
-                    showView('initial-view');
+                    showView('auth-view');
                 }
             } catch (error) {
                 console.error("Erro durante a mudança de estado de autenticação:", error);
-                // Garante que o usuário veja a tela inicial se algo der errado
+                // Garante que o usuário veja a tela de login se algo der errado
                 await leaveRoomRealtime();
                 await Promise.race([
                     sb.auth.signOut(),
                     timeout(5000)
                 ]).catch(e => console.error('O logout falhou no erro:', e));
                 showView('initial-view');
+            } finally {
+                toggleLoading(false);
             }
         });
 

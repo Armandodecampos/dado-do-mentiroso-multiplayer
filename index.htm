@@ -197,8 +197,14 @@
             <img src="https://dl.dropbox.com/scl/fi/9303p8o5ubj1xkr9bovwo/logo-dado-do-mentiroso-2.png?rlkey=tsmt4tfqpuugljykjvxljq9t7&st=gpj40pb9&dl=0" alt="Logo do Jogo" class="w-64">
         </div>
 
+        <!-- #0: View Inicial -->
+        <div id="initial-view" class="hidden text-[#4a2c2a] max-w-md mx-auto flex flex-col gap-4">
+            <button id="proceed-btn" class="w-full bg-[#003366] text-white font-bold py-3 px-4 rounded-lg transition-transform transform hover:scale-105 shadow-md border-b-4 border-[#001a33]">Entrar</button>
+            <button id="initial-how-to-play-btn" class="w-full bg-[#4a2c2a] text-white font-bold py-3 px-4 rounded-lg transition-transform transform hover:scale-105 shadow-md border-b-4 border-[#2c1a1a]">Como Jogar</button>
+        </div>
+
         <!-- #1: View de Autenticação -->
-        <div id="auth-view" class="text-[#4a2c2a] max-w-md mx-auto">
+        <div id="auth-view" class="hidden text-[#4a2c2a] max-w-md mx-auto">
             <!-- Abas de Login / Cadastro -->
             <div id="auth-tabs-container" class="flex mb-4 border-b-2 border-[#4a2c2a]">
                 <button id="tab-login" class="flex-1 py-2 text-center font-bold transition-all duration-200 border-b-4 border-[#e5a938] text-opacity-100">Login</button>
@@ -852,6 +858,7 @@
 
         // --- 3. ESTADO DA APLICAÇÃO ---
         let currentUser = null;
+        let lastMainView = 'initial-view';
         let currentRoomChannel = null;
         let currentBidInput = { quantity: 1, face: 1 }; // Estado local para a UI de lance
         let currentRoom = null;
@@ -875,12 +882,17 @@
         function showView(viewId) {
             playSound('transition-sound');
             SoundEngine.updateBGMusic();
-            ['auth-view', 'lobby-view', 'room-view', 'how-to-play-view'].forEach(id => document.getElementById(id).classList.add('hidden'));
+
+            if (viewId !== 'how-to-play-view') {
+                lastMainView = viewId;
+            }
+
+            ['initial-view', 'auth-view', 'lobby-view', 'room-view', 'how-to-play-view'].forEach(id => document.getElementById(id).classList.add('hidden'));
             document.getElementById(viewId).classList.remove('hidden');
 
             // Controla a visibilidade dos botões de configuração com base na view
             // Agora visível no Login e Lobby
-            const isAuthOrLobby = viewId === 'auth-view' || viewId === 'lobby-view';
+            const isAuthOrLobby = viewId === 'auth-view' || viewId === 'lobby-view' || viewId === 'initial-view';
             topRightControls.classList.toggle('hidden', !isAuthOrLobby);
 
             // O botão de perfil só aparece se o usuário estiver logado
@@ -1512,12 +1524,20 @@
             }
         });
 
+        document.getElementById('proceed-btn').addEventListener('click', () => {
+            showView('auth-view');
+        });
+
+        document.getElementById('initial-how-to-play-btn').addEventListener('click', () => {
+            showView('how-to-play-view');
+        });
+
         howToPlayBtn.addEventListener('click', () => {
             showView('how-to-play-view');
         });
 
         backToLobbyFromHowToPlayBtn.addEventListener('click', () => {
-            showView('lobby-view');
+            showView(lastMainView || 'lobby-view');
         });
 
         // --- 6. LÓGICA DO MODAL DE CONFIGURAÇÕES (REFATORADO) ---
